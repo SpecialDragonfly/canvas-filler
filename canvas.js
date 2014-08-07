@@ -16,21 +16,34 @@ $(function() {
 
             return sum/values.length;
         },
+        hexToRgb: function(hex) {
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        },
         generateColour: function(surroundingSquares) {
-            var pix = surroundingSquares.data;
+            // surroundingSquares is an n x n grid (min n = 2, max n = 3)
             var reds = [];
             var greens = [];
             var blues = [];
-            for(var i = 0, n = pix.length; i < n; i += 4) {
-                var red = 255 - pix[i];
-                var green = 255 - pix[i + 1];
-                var blue = 255 - pix[i + 2];
-                if (red !== 255 && green !== 255 && blue !== 255) {
-                    reds.push(red);
-                    greens.push(green);
-                    blues.push(blue);
+            for (var i = 0; i < surroundingSquares.length; i++) {
+                var row = surroundingSquares[i];
+                for (var j = 0; j < row.length; j++) {
+                    var colour = row[j];
+                    if (colour !== "#000000") {
+                        var colours = this.hexToRgb(colour);
+                        if (colours !== null) {
+                            reds.push(colours.r);
+                            greens.push(colours.g);
+                            blues.push(colours.b);
+                        }
+                    }
                 }
             }
+
             var redAvg = Math.floor(Math.random() * 256);
             if (reds.length > 0) {
                 redAvg = Math.floor(this.average(reds));
@@ -91,9 +104,9 @@ $(function() {
 
             var previousI = i - 1 < 0 ? 0 : i - 1;
             var previousJ = j - 1 < 0 ? 0 : j - 1;
-            for (var x = previousI; x < i + 1; i++) {
+            for (var x = previousI; x < i + 1; x++) {
                 var row = [];
-                for (var y = previouxJ; y < j + 1; j++) {
+                for (var y = previousJ; y < j + 1; y++) {
                     row.push(this.memoryCanvas[x][y]);
                 }
                 grid.push(row);
@@ -112,7 +125,7 @@ $(function() {
             for (var i = 0; i < width; i++) {
                 var row = [];
                 for (var j = 0; j < height; j++) {
-                    row.push(255);
+                    row.push("#000000");
                 }
                 this.memoryCanvas.push(row);
             }
@@ -133,9 +146,11 @@ $(function() {
                         this._getSurroundingColours(i, j)
                     );
                     this.usedColours.push(colour);
+                    this.memoryCanvas[i][j] = colour;
                     console.log("generated colour: " + colour);
                 }
             }
+            //console.log(this.memoryCanvas);
 
             for (var i = 0; i < width; i++) {
                 for (j = 0; j < height; j++) {
@@ -149,4 +164,6 @@ $(function() {
     $(document).find("#start").on('click', function() {
         window.Image.begin();
     });
+
+    window.Image.init();
 });

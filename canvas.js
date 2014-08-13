@@ -147,7 +147,9 @@ $(function() {
                     );
                     this.usedColours.push(colour);
                     this.memoryCanvas[i][j] = colour;
-                    console.log("generated colour: " + colour);
+                    console.log(
+                        "generated colour " + colour + " for (" + i + "," + j + ")"
+                    );
                 }
             }
             //console.log(this.memoryCanvas);

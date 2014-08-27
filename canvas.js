@@ -276,6 +276,8 @@ $(function() {
         unique:true,
         canvas:null,
         context:null,
+        chart:null,
+        chartData:null,
 
         defaultValue: {
             'r':0,
@@ -304,6 +306,15 @@ $(function() {
 
             this.currentRow = 0;
             this.method = window.Methods.Original;
+
+            this.chart = new SmoothieChart({
+                grid:{
+                    millisPerLine:1000
+                }
+            });
+            this.chart.streamTo(document.getElementById('timechart'));
+            this.chartData = new TimeSeries();
+            this.chart.addTimeSeries(this.chartData);
         },
 
         drawRow: function(row) {
@@ -337,8 +348,9 @@ $(function() {
                     row.push(colour);
                 }
                 this.drawRow(row);
-                console.log("finished row " + i + " in: " + (Date.now() - now));
-                now = Date.now();
+                var newNow = Date.now();
+                this.chartData.append(newNow, newNow - now);
+                now = newNow;
             }
 
             if (this.unique && typeof(this.method.unique) == 'function') {

@@ -163,7 +163,7 @@ $(function() {
 
                 while (!found) {
                     // Red, Green and Blue all at maximum radius distance.
-                    var maxDist = Math.sqrt(3 * (radiusStep^2));
+                    var maxDist = Math.sqrt(3 * (radiusStep * radiusStep));
                     var minRed = redAvg - radiusStep;
                     if (minRed < 0) {
                         minRed = 0;
@@ -227,7 +227,7 @@ $(function() {
             var gdist = gavg - g;
             var bdist = bavg - b;
 
-            return Math.sqrt((rdist ^ 2) + (gdist ^ 2) + (bdist ^ 2));
+            return Math.sqrt((rdist * rdist) + (gdist * gdist) + (bdist * bdist));
         },
 
         record: function(i, j, colour) {

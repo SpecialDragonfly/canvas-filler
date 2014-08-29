@@ -1,20 +1,25 @@
-function Point(r, g, b) {
+function Point(r, g, b, a) {
     this.r = r;
     this.g = g;
     this.b = b;
+    this.a = a;
 
     this.componentToHex = function(c) {
         var hex = c.toString(16);
         return hex.length == 1 ? "0" + hex : hex;
     };
     this.hash = function() {
-        return "#" + this.componentToHex(this.r) + this.componentToHex(this.g) + this.componentToHex(this.b);
+        return "#" + this.componentToHex(this.r) +
+                this.componentToHex(this.g) +
+                this.componentToHex(this.b) +
+                this.componentToHex(this.a);
     };
     this.toSimpleObject = function() {
         return {
             'r':this.r,
             'g':this.g,
-            'b':this.b
+            'b':this.b,
+            'a':this.a
         };
     };
 }
@@ -33,7 +38,7 @@ var IterativeGenerator = {
 
     generate: function() {
         var potential = new Point(
-            this.defaultValue.r, this.defaultValue.g, this.defaultValue.b
+            this.defaultValue.r, this.defaultValue.g, this.defaultValue.b, this.defaultValue.a
         );
         if (typeof(this.previousValue) !== "undefined") {
             // This obviously isn't a potential option, but used to

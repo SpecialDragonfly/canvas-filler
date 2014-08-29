@@ -78,10 +78,11 @@ $(function() {
             if (this.running === true) {
                 return;
             }
-            this.lasttime = Date.now();
-            console.log("Started at: " + this.lasttime);
             var method = $(document).find("#method option:selected").val();
             this.setMethod(method);
+
+            this.lasttime = Date.now();
+            console.log("Started at: " + this.lasttime);
 
             this.worker.postMessage({
                 'canvas':{

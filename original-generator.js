@@ -1,20 +1,25 @@
-function Point(r, g, b) {
+function Point(r, g, b, a) {
     this.r = r;
     this.g = g;
     this.b = b;
+    this.a = a;
 
     this.componentToHex = function(c) {
         var hex = c.toString(16);
         return hex.length == 1 ? "0" + hex : hex;
     };
     this.hash = function() {
-        return "#" + this.componentToHex(this.r) + this.componentToHex(this.g) + this.componentToHex(this.b);
+        return "#" + this.componentToHex(this.r) +
+                this.componentToHex(this.g) +
+                this.componentToHex(this.b) +
+                this.componentToHex(this.a);
     };
     this.toSimpleObject = function() {
         return {
             'r':this.r,
             'g':this.g,
-            'b':this.b
+            'b':this.b,
+            'a':this.a
         };
     };
 }
@@ -37,7 +42,14 @@ var OriginalGenerator = {
         for (var i = 0; i < this.width; i++) {
             var row = [];
             for (var j = 0; j < this.height; j++) {
-                row.push(new Point(this.defaultValue.r, this.defaultValue.g, this.defaultValue.b));
+                row.push(
+                    new Point(
+                        this.defaultValue.r,
+                        this.defaultValue.g,
+                        this.defaultValue.b,
+                        this.defaultValue.a
+                    )
+                );
             }
             this.memoryCanvas.push(row);
         }
@@ -48,7 +60,7 @@ var OriginalGenerator = {
             return total + x;
         }, 0);
 
-        return sum/values.length;
+        return Math.ceil(sum/values.length);
     },
 
     _getSurroundingColours: function(i, j) {
@@ -107,7 +119,7 @@ var OriginalGenerator = {
             blueAvg = Math.floor(this.average(blues));
         }
 
-        var potential = new Point(redAvg, greenAvg, blueAvg);
+        var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
         var possible = potential.hash();
 

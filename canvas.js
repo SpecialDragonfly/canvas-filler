@@ -101,7 +101,10 @@ $(function() {
             console.log("Started at: " + this.lasttime);
             var method = $(document).find("#method option:selected").val();
             this.setMethod(method);
+
             this.lasttime = Date.now();
+            console.log("Started at: " + this.lasttime);
+
             this.worker.postMessage({
                 'canvas':{
                     width:this.canvas.width,

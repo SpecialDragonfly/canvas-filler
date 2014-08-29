@@ -18,19 +18,29 @@ $(function() {
     },
 
     window.Image = {
+        // The canvas object for the image
         canvas:null,
+        // 2D context for the canvas object for the image
         context:null,
+        // Last time a row or column was completed
         lasttime: 0,
-        chart:null,
-        running:false,
-        chartData:null,
 
+        // Whether a worker is currently running ( stopping the 'begin' button
+        // being clicked multiple times)
+        running:false,
+
+        // The currently plotted chart data
+        chartData:[],
+
+        // Default value for the background of the canvas
         defaultValue: {
             'r':0,
             'g':0,
             'b':0,
             'a':1 // 0: fully transparent -> 1: not transparent
         },
+
+        // The currently running worker
         worker:null,
 
         setMethod: function(method) {
@@ -54,15 +64,16 @@ $(function() {
 
         draw: function(e) {
             if (e.data.running == true) {
-                if (e.data.rowComplete == true) {
-                    var now = Date.now();
-                    console.log("Row complete in: " + (now - this.lasttime));
-                    this.lasttime = now;
-                }
                 var colour = e.data.colour;
                 var coords = e.data.coordinates;
+
+                if (e.data.rowComplete == true) {
+                    var now = Date.now();
+                    this.plot(coords.x, (now - this.lasttime));
+                    this.lasttime = now;
+                }
                 this.context.fillStyle = window.ImageUtils.rgbToHex(
-                        colour.r, colour.g, colour.b
+                    colour.r, colour.g, colour.b
                 );
                 this.context.fillRect(coords.x, coords.y, 1, 1);
             } else {
@@ -71,31 +82,26 @@ $(function() {
             }
         },
 
+        plot: function(x, value) {
+            this.chartData.push([x, value]);
+            $.plot($("#flotchart"), [this.chartData]);
+        },
+
         init: function() {
             this.canvas = $(document).find("#area")[0];
             this.context = this.canvas.getContext('2d');
-
-
-            this.chart = new SmoothieChart({
-                grid:{
-                    millisPerLine:1000
-                }
-            });
-            this.chart.streamTo(document.getElementById('timechart'));
-            this.chartData = new TimeSeries();
-            this.chart.addTimeSeries(this.chartData);
         },
-
 
         begin: function() {
             if (this.running === true) {
                 return;
             }
 
-            this.lasttime = Date.now();
+            $.plot($("#flotchart"), this.chartData);
             console.log("Started at: " + this.lasttime);
             var method = $(document).find("#method option:selected").val();
             this.setMethod(method);
+            this.lasttime = Date.now();
             this.worker.postMessage({
                 'canvas':{
                     width:this.canvas.width,
@@ -111,4 +117,5 @@ $(function() {
         window.Image.begin();
     });
 
-    window.Image.init();});
+    window.Image.init();
+});

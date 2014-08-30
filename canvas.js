@@ -98,7 +98,7 @@ $(function() {
             }
 
             $.plot($("#flotchart"), this.chartData);
-            console.log("Started at: " + this.lasttime);
+            
             var method = $(document).find("#method option:selected").val();
             this.setMethod(method);
 

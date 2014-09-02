@@ -13,20 +13,24 @@
             }
 
             #timefrequency {
-                width:128px;
+                width:256px;
                 height:128px;
                 border:1px solid black;
+                min-width:256px;
             }
 
             #heatmapexample {
                 border:1px solid black;
+                width:100%;
+                height:27px;
+                max-height:27px;
             }
 
             #heatmap {
                 border:1px solid black;
             }
 
-            #heatmaptestcanvas {
+            #area {
                 border:1px solid black;
             }
 
@@ -52,12 +56,11 @@
                 <option value="original">Original</option>
                 <option value="iterate">Iterate</option>
             </select>
-            <canvas id='heatmapexample' height='2px'></canvas>
-            <canvas id='heatmaptestcanvas' height='2px'></canvas>
+            <canvas id='heatmapexample'></canvas>
         </div>
         <div class='main'>
-            <canvas id='area' width='256px' height='256px' style='border:1px solid black'></canvas>
-            <canvas id='heatmap' width='1024' height='1024'></canvas>
+            <canvas id='area' width='768px' height='768px'></canvas>
+            <canvas id='heatmap' width='768' height='768'></canvas>
             <div id='timefrequency'></div>
             <div id="flotchart"></div>
         </div>

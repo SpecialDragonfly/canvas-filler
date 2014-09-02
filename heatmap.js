@@ -42,7 +42,6 @@ var Map = {
         // Then we go from very red to very green
         for (var r = 255, g = 0; r >= 0; r -= delta, g += delta) {
             var point = new Point(r, g, b);
-            console.log(JSON.stringify(point.toSimpleObject()));
             this.colours.push(new Point(r, g, b));
         }
 
@@ -51,7 +50,6 @@ var Map = {
         // Then very green to very blue
         for (var g = 255, b = 0; g >= 0; g -= delta, b += delta) {
             var point = new Point(r, g, b);
-            console.log(JSON.stringify(point.toSimpleObject()));
             this.colours.push(new Point(r, g, b));
         }
 
@@ -60,7 +58,6 @@ var Map = {
         // Then very blue back to very red
         for (var b = 255, r = 0; b >= 0; b -= delta, r += delta) {
             var point = new Point(r, g, b);
-            console.log(JSON.stringify(point.toSimpleObject()));
             this.colours.push(new Point(r, g, b));
         }
 
@@ -79,18 +76,12 @@ self.addEventListener('message', function(e) {
     var time = e.data.time;
     var coords = e.data.coords;
 
-    if (e.data.displayFull === true) {
-        for (var i = 0, length = Map.coloursLength; i < length; i++) {
-            self.postMessage({
-                'colour':Map.colours[i].toSimpleObject(),
-                'width':Map.coloursLength
-            });
-        }
-    } else if (e.data.test === true) {
+    if (e.data.test === true) {
         for (var i = 0, length = Map.coloursLength * 2; i < length; i++) {
+            var colour = Map.getColourForValue(i);
             self.postMessage({
                 'colour':Map.getColourForValue(i).toSimpleObject(),
-                'width':Map.coloursLength * 2,
+                'colours':Map.coloursLength * 2,
                 'x':i
             });
         }

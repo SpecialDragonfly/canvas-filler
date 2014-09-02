@@ -84,7 +84,7 @@ $(function() {
                     break;
             }
 
-            this.heatmapWorker.terminate();
+            this.testHeatmapWorker.terminate();
             this.heatmapWorker = new Worker('heatmap.js');
             this.heatmapWorker.addEventListener(
                 'message', $.proxy(this.drawHeatmap, this), false
@@ -145,36 +145,17 @@ $(function() {
         },
 
         init: function() {
+            // Where the colours go
             this.canvas = $(document).find("#area")[0];
             this.context = this.canvas.getContext('2d');
 
+            // Main heatmap area
             this.heatmap = $(document).find("#heatmap")[0];
             this.heatmapContext = this.heatmap.getContext('2d');
 
+            // Area for example of colours used in the heatmap
             this.heatmapexample = $(document).find("#heatmapexample")[0];
             this.heatmapexampleContext = this.heatmapexample.getContext('2d');
-
-            this.heatmapWorker = new Worker('heatmap.js');
-            this.heatmapWorker.addEventListener(
-                'message', $.proxy(this.drawHeatmapExample, this), false
-            );
-
-            this.heatmapWorker.postMessage({
-                'displayFull':true
-            });
-        },
-
-        heatmapExampleX:0,
-        drawHeatmapExample: function(e) {
-            var colour = e.data.colour;
-            var length = e.data.width;
-            $(document).find("#heatmapexample").css('width', length);
-            $(document).find("#timefrequency").css('width', length);
-            this.heatmapexampleContext.fillStyle = window.ImageUtils.rgbToHex(
-                colour.r, colour.g, colour.b
-            );
-            this.heatmapexampleContext.fillRect(this.heatmapExampleX, 0, 1, 1);
-            this.heatmapExampleX++;
         },
 
         heatmapWorker:null,
@@ -211,18 +192,19 @@ $(function() {
             this.testHeatmapWorker.addEventListener(
                 'message', $.proxy(this.drawTestHeatmap, this), false
             );
-            this.testHeatmapCanvas = $("#heatmaptestcanvas")[0];
+            this.testHeatmapCanvas = $("#heatmapexample")[0];
             this.testHeatmapContext = this.testHeatmapCanvas.getContext('2d');
             this.testHeatmapWorker.postMessage({'test':true});
         },
 
         drawTestHeatmap: function(e) {
-            $(this.testHeatmapCanvas).css('width', e.data.width);
+            var width = Math.floor($(this.testHeatmapCanvas).width() / e.data.colours) - 1;
+            var height = this.testHeatmapCanvas.height;
             var colour = e.data.colour;
             this.testHeatmapContext.fillStyle = window.ImageUtils.rgbToHex(
                 colour.r, colour.g, colour.b
             );
-            this.testHeatmapContext.fillRect(e.data.x, 0, 1, 1);
+            this.testHeatmapContext.fillRect(e.data.x * width/2, 0, width, height);
         }
     }
 

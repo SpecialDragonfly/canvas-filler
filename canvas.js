@@ -82,9 +82,24 @@ $(function() {
                         'message', $.proxy(this.draw, this), false
                     );
                     break;
+                case "path":
+                case "PATH":
+                    this.worker = new Worker('path-generator.js');
+                    this.worker.addEventListener(
+                        'message', $.proxy(this.draw, this), false
+                    );
+                    break;
+                case "spiral":
+                case "SPIRAL":
+                    this.worker = new Worker('spiral-generator.js');
+                    this.worker.addEventListener(
+                        'message', $.proxy(this.draw, this), false
+                    );
             }
 
-            this.testHeatmapWorker.terminate();
+            if (this.testHeatmapWorker !== null) {
+                this.testHeatmapWorker.terminate();
+            }
             this.heatmapWorker = new Worker('heatmap.js');
             this.heatmapWorker.addEventListener(
                 'message', $.proxy(this.drawHeatmap, this), false
@@ -93,6 +108,7 @@ $(function() {
 
         lasttime:null,
 
+        currentRow:0,
         draw: function(e) {
             if (e.data.running == true) {
                 var colour = e.data.colour;
@@ -100,8 +116,9 @@ $(function() {
 
                 var now = Date.now();
                 if (e.data.rowComplete == true) {
-                    this.plot(coords.x, (now - this.lastrowtime));
+                    this.plot(this.currentRow, (now - this.lastrowtime));
                     this.lastrowtime = now;
+                    this.currentRow++;
                 }
                 this.context.fillStyle = window.ImageUtils.rgbToHex(
                     colour.r, colour.g, colour.b

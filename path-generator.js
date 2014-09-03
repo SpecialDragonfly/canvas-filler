@@ -209,7 +209,6 @@ var PathGenerator = {
 
     record: function(i, j, colour) {
         this.usedColours.push(colour.hash());
-        console.log("trying to record position: " + i + "," + j);
         this.memoryCanvas[i][j] = colour;
     },
 

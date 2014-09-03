@@ -212,38 +212,68 @@ var SpiralGenerator = {
         this.memoryCanvas[i][j] = colour;
     },
 
+    lastDirection:'',
     move: function() {
+        var position = {};
         if (this.pixelsRemaining() === true) {
-            var options = [];
             var x = this.lastPosition.x;
             var y = this.lastPosition.y;
 
-            while (options.length === 0) {
+            // Do we have a direction?
+            if (this.lastDirection !== '') {
+                // Can we proceed in the given direction?
+                switch(this.lastDirection) {
+                    case 'n':
+                        if ((y - 1 >= 0) && this._check(x, y - 1)) {
+                            position = {'x':x, 'y':y - 1};
+                        }
+                        break;
+                    case 'e':
+                        if ((x + 1 < this.width) && this._check(x + 1, y)) {
+                            position = {'x':x + 1, 'y': y};
+                        }
+                        break;
+                    case 's':
+                        if ((y + 1 < this.height) && this._check(x, y + 1)) {
+                            position = {'x':x, 'y':y + 1};
+                        }
+                        break;
+                    case 'w':
+                        if ((x - 1 >= 0) && this._check(x - 1, y)) {
+                            position = {'x':x - 1, 'y':y};
+                        }
+                        break;
+                }
+            }
+
+            while (JSON.stringify(position) === '{}') {
                 if ((y - 1 >= 0) && this._check(x, y - 1)) {
-                    options.push({'x':x, 'y':y - 1});
+                    position = {'x':x, 'y':y - 1};
+                    this.lastDirection = 'n';
                 }
                 else if ((x + 1 < this.width) && this._check(x + 1, y)) {
-                    options.push({'x':x + 1, 'y': y});
+                    position = {'x':x + 1, 'y': y};
+                    this.lastDirection = 'e';
                 }
                 else if ((y + 1 < this.height) && this._check(x, y + 1)) {
-                    options.push({'x':x, 'y':y + 1});
+                    position = {'x':x, 'y':y + 1};
+                    this.lastDirection = 's';
                 }
                 else if ((x - 1 >= 0) && this._check(x - 1, y)) {
-                    options.push({'x':x - 1, 'y':y});
-                }
-
-                if (options.length === 0) {
+                    position = {'x':x - 1, 'y':y};
+                    this.lastDirection = 'w';
+                } else {
                     x = Math.floor(Math.random() * this.width);
                     y = Math.floor(Math.random() * this.height);
                     if (this._check(x, y)) {
-                        options.push({'x':x, 'y':y});
+                        position = {'x':x, 'y':y};
                     }
+                    this.lastDirection = '';
                 }
             }
-            var position = options[0];
-
             this.lastPosition = position;
         }
+
         return position;
     },
 

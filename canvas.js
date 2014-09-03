@@ -222,6 +222,11 @@ $(function() {
                 colour.r, colour.g, colour.b
             );
             this.testHeatmapContext.fillRect(e.data.x * width/2, 0, width, height);
+        },
+
+        downloadCanvas: function(link) {
+            link.href = this.canvas.toDataURL('image/png');
+            link.download = this.canvas.width + "x" + this.canvas.height + "@" + Date.now() + ".png";
         }
     }
 
@@ -232,6 +237,10 @@ $(function() {
     $(document).find("#heatmaptest").on('click', function() {
         window.Image.testHeatmap();
     });
+
+    $("#downloadimage")[0].addEventListener('click', function(){
+        window.Image.downloadCanvas(this);
+    }, false);
 
     window.Image.init();
 });

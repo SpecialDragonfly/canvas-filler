@@ -161,6 +161,15 @@ $(function() {
             $.plot($("#flotchart"), [this.chartData]);
         },
 
+        random: function() {
+            var imData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            var data = imData.data;
+            for (var i = 0; i < data.length; i++) {
+                data[i] = parseInt(Math.random() * 255);
+            }
+            this.context.putImageData(imData, 0, 0);
+        },
+
         init: function() {
             // Where the colours go
             this.canvas = $(document).find("#area")[0];
@@ -225,7 +234,17 @@ $(function() {
         },
 
         downloadCanvas: function(link) {
-            link.href = this.canvas.toDataURL('image/png');
+            var parts = this.canvas.toDataURL().match(/data:([^;]*)(;base64)?,([0-9A-Za-z+/]+)/);
+            var binStr = atob(parts[3]);
+
+            var buf = new ArrayBuffer(binStr.length);
+            var view = new Uint8Array(buf);
+            for (var i = 0; i < view.length; i++) {
+                view[i] = binStr.charCodeAt(i);
+            }
+            var blob = new Blob([view], {'type':parts[1]});
+            var URL = webkitURL.createObjectURL(blob);
+            link.href = URL;
             link.download = this.canvas.width + "x" + this.canvas.height + "@" + Date.now() + ".png";
         }
     }
@@ -241,6 +260,12 @@ $(function() {
     $("#downloadimage")[0].addEventListener('click', function(){
         window.Image.downloadCanvas(this);
     }, false);
+
+    $(document).find("#size").on('change', function() {
+            var val = $(this).val();
+            $(window.Image.canvas).attr({'width':val, 'height':val});
+            $(window.Image.heatmap).attr({'width':val, 'height':val});
+    });
 
     window.Image.init();
 });

@@ -233,5 +233,11 @@ $(function() {
         window.Image.testHeatmap();
     });
 
+    $(document).find("#size").on('change', function() {
+        var value = $(this).val();
+        $("#area").attr({'width':value, 'height':value});
+        $("#heatmap").attr({'width':value, 'height':value});
+    });
+
     window.Image.init();
 });

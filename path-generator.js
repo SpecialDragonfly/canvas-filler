@@ -9,10 +9,7 @@ function Point(r, g, b, a) {
         return hex.length == 1 ? "0" + hex : hex;
     };
     this.hash = function() {
-        return "#" + this.componentToHex(this.r) +
-                this.componentToHex(this.g) +
-                this.componentToHex(this.b) +
-                this.componentToHex(this.a);
+        return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
     };
     this.toSimpleObject = function() {
         return {

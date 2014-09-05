@@ -4,10 +4,6 @@ function Point(r, g, b, a) {
     this.b = b;
     this.a = a;
 
-    this.componentToHex = function(c) {
-        var hex = c.toString(16);
-        return hex.length == 1 ? "0" + hex : hex;
-    };
     this.hash = function() {
         return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
     };
@@ -23,7 +19,7 @@ function Point(r, g, b, a) {
 
 // Singleton generator
 var PathGenerator = {
-    memoryCanvas: [],
+    memoryCanvas: {},
     usedColours:[],
     width:0,
     height:0,
@@ -37,20 +33,13 @@ var PathGenerator = {
         this.width = canvas.width;
         this.height = canvas.height;
 
-        for (var i = 0; i < this.width; i++) {
-            var row = [];
-            for (var j = 0; j < this.height; j++) {
-                row.push(
-                    new Point(
-                        this.defaultValue.r,
-                        this.defaultValue.g,
-                        this.defaultValue.b,
-                        this.defaultValue.a
-                    )
-                );
-            }
-            this.memoryCanvas.push(row);
-        }
+        // for (var i = 0; i < this.width; i++) {
+        //     var row = [];
+        //     for (var j = 0; j < this.height; j++) {
+        //         row.push(null);
+        //     }
+        //     this.memoryCanvas.push(row);
+        // }
 
         var x = Math.floor(Math.random() * this.width);
         var y = Math.floor(Math.random() * this.height);
@@ -58,6 +47,7 @@ var PathGenerator = {
     },
 
     pixelsRemaining: function() {
+        var count = ((this.width * this.height) - this.usedColours.length);
         return ((this.width * this.height) - this.usedColours.length) > 0;
     },
 
@@ -77,11 +67,11 @@ var PathGenerator = {
         var maxI = i + 1 >= this.width ? this.width -1 : i + 1;
         var maxJ = j + 1 >= this.height ? this.height -1 : j + 1;
         for (var x = previousI; x <= maxI; x++) {
-            var row = [];
             for (var y = previousJ; y <= maxJ; y++) {
-                row.push(this.memoryCanvas[x][y]);
+                if (x in this.memoryCanvas && y in this.memoryCanvas[x]) {
+                    grid.push(this.memoryCanvas[x][y]);
+                }
             }
-            grid.push(row);
         }
 
         return grid;
@@ -95,19 +85,10 @@ var PathGenerator = {
         var greens = [];
         var blues = [];
         for (var i = 0; i < surroundingSquares.length; i++) {
-            var row = surroundingSquares[i];
-            for (var j = 0; j < row.length; j++) {
-                var colour = row[j];
-                if (!(colour.a === this.defaultValue.a &&
-                    colour.r === this.defaultValue.r &&
-                    colour.g === this.defaultValue.g &&
-                    colour.b === this.defaultValue.b
-                )) {
-                    reds.push(colour.r);
-                    greens.push(colour.g);
-                    blues.push(colour.b);
-                }
-            }
+            var colour = surroundingSquares[i];
+            reds.push(colour.r);
+            greens.push(colour.g);
+            blues.push(colour.b);
         }
 
         var redAvg = Math.floor(Math.random() * 256);
@@ -206,7 +187,12 @@ var PathGenerator = {
 
     record: function(i, j, colour) {
         this.usedColours.push(colour.hash());
-        this.memoryCanvas[i][j] = colour;
+        if (i in this.memoryCanvas) {
+            this.memoryCanvas[i][j] = colour;
+        } else {
+            this.memoryCanvas[i]={};
+            this.memoryCanvas[i][j] = colour;
+        }
     },
 
     move: function() {
@@ -244,12 +230,7 @@ var PathGenerator = {
     },
 
     _check: function(x, y) {
-        var point = this.memoryCanvas[x][y];
-        return (point.r === this.defaultValue.r &&
-            point.g === this.defaultValue.g &&
-            point.b === this.defaultValue.b &&
-            point.a === this.defaultValue.a
-        );
+        return !(x in this.memoryCanvas && y in this.memoryCanvas[x]);
     }
 }
 

@@ -1,3 +1,4 @@
+"use strict";
 function Point(r, g, b, a) {
     this.r = r;
     this.g = g;
@@ -21,6 +22,7 @@ function Point(r, g, b, a) {
 var PathGenerator = {
     memoryCanvas: {},
     usedColours:[],
+    usedColourCount:0,
     width:0,
     height:0,
     defaultValue:{'r':0,'g':0,'b':0},
@@ -33,30 +35,23 @@ var PathGenerator = {
         this.width = canvas.width;
         this.height = canvas.height;
 
-        // for (var i = 0; i < this.width; i++) {
-        //     var row = [];
-        //     for (var j = 0; j < this.height; j++) {
-        //         row.push(null);
-        //     }
-        //     this.memoryCanvas.push(row);
-        // }
-
         var x = Math.floor(Math.random() * this.width);
         var y = Math.floor(Math.random() * this.height);
         this.lastPosition = {'x':x, 'y':y};
     },
 
     pixelsRemaining: function() {
-        var count = ((this.width * this.height) - this.usedColours.length);
-        return ((this.width * this.height) - this.usedColours.length) > 0;
+        return ((this.width * this.height) - this.usedColourCount) > 0;
+    },
+
+    addLast: function(x, total) {
+        return total + x;
     },
 
     average: function(values) {
-        var sum = values.reduceRight(function(x, total) {
-            return total + x;
-        }, 0);
+        var sum = values.reduce(this.addLast, 0);
 
-        return Math.ceil(sum/values.length);
+        return Math.ceil(sum / values.length);
     },
 
     _getSurroundingColours: function(i, j) {
@@ -68,7 +63,9 @@ var PathGenerator = {
         var maxJ = j + 1 >= this.height ? this.height -1 : j + 1;
         for (var x = previousI; x <= maxI; x++) {
             for (var y = previousJ; y <= maxJ; y++) {
-                if (x in this.memoryCanvas && y in this.memoryCanvas[x]) {
+                if (this.memoryCanvas.hasOwnProperty(x) &&
+                    this.memoryCanvas[x].hasOwnProperty(y)
+                ) {
                     grid.push(this.memoryCanvas[x][y]);
                 }
             }
@@ -78,7 +75,6 @@ var PathGenerator = {
     },
 
     generate: function(i, j) {
-
         // surroundingSquares is an n x n grid (min n = 2, max n = 3)
         var surroundingSquares = this._getSurroundingColours(i, j);
         var reds = [];
@@ -91,20 +87,29 @@ var PathGenerator = {
             blues.push(colour.b);
         }
 
-        var redAvg = Math.floor(Math.random() * 256);
+        var redAvg = 0;
         if (reds.length > 0) {
-            redAvg = Math.floor(this.average(reds));
+            redAvg = this.average(reds);
+        } else {
+            redAvg = Math.random() * 256;
         }
+        redAvg = Math.floor(redAvg);
 
-        var greenAvg = Math.floor(Math.random() * 256);
+        var greenAvg = 0;
         if (greens.length > 0) {
-            greenAvg = Math.floor(this.average(greens));
+            greenAvg = this.average(greens);
+        } else {
+            greenAvg = Math.random() * 256;
         }
+        greenAvg = Math.floor(greenAvg);
 
-        var blueAvg = Math.floor(Math.random() * 256);
+        var blueAvg = 0;
         if (blues.length > 0) {
-            blueAvg = Math.floor(this.average(blues));
+            blueAvg = this.average(blues);
+        } else {
+            blueAvg = Math.random() * 256;
         }
+        blueAvg = Math.floor(blueAvg);
 
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
@@ -112,12 +117,13 @@ var PathGenerator = {
 
         if (this.usedColours.indexOf(possible) >= 0) {
             // Already used this colour
-            found = false;
+            var found = false;
             var radiusStep = 1;
             var minDist = 1;
 
-            while (!found) {
+            while (found === false) {
                 // Red, Green and Blue all at maximum radius distance.
+                // sqrt(x^2 + y^2 + z^2) where x = y = z
                 var maxDist = Math.sqrt(3 * (radiusStep * radiusStep));
                 var minRed = redAvg - radiusStep;
                 if (minRed < 0) {
@@ -144,10 +150,12 @@ var PathGenerator = {
                     maxBlue = 255;
                 }
 
-                for (i = minRed; i <= maxRed; i++) {
-                    for (j = minGreen; j <= maxGreen; j++) {
-                        for (k = minBlue; k <= maxBlue; k++) {
-                            var distance = this.distance(i, j, k, redAvg, greenAvg, blueAvg);
+                for (var i = minRed; i <= maxRed; i++) {
+                    for (var j = minGreen; j <= maxGreen; j++) {
+                        for (var k = minBlue; k <= maxBlue; k++) {
+                            var distance = this.distance(
+                                i, j, k, redAvg, greenAvg, blueAvg
+                            );
                             if (distance <= maxDist && distance > minDist) {
                                 potential.r = i;
                                 potential.g = j;
@@ -187,10 +195,11 @@ var PathGenerator = {
 
     record: function(i, j, colour) {
         this.usedColours.push(colour.hash());
-        if (i in this.memoryCanvas) {
+        this.usedColourCount++;
+        if (this.memoryCanvas.hasOwnProperty(i)) {
             this.memoryCanvas[i][j] = colour;
         } else {
-            this.memoryCanvas[i]={};
+            this.memoryCanvas[i] = {};
             this.memoryCanvas[i][j] = colour;
         }
     },
@@ -230,7 +239,10 @@ var PathGenerator = {
     },
 
     _check: function(x, y) {
-        return !(x in this.memoryCanvas && y in this.memoryCanvas[x]);
+        return !(
+            this.memoryCanvas.hasOwnProperty(x) &&
+            this.memoryCanvas[x].hasOwnProperty(y)
+        );
     }
 }
 

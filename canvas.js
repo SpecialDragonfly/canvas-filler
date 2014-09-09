@@ -1,3 +1,4 @@
+"use strict";
 $(function() {
     window.ImageUtils = {
         hexToRgb: function(hex) {
@@ -25,8 +26,15 @@ $(function() {
         // Last time a row or column was completed
         lastrowtime: 0,
 
+        // Everything required for the heatmap drawing itself
         heatmap:null,
         heatmapContext:null,
+        heatmapWorker:null,
+
+        // Everything required for the example of the heatmap.
+        testHeatmapWorker:null,
+        testHeatmapCanvas:null,
+        testHeatmapContext:null,
 
         // Whether a worker is currently running ( stopping the 'begin' button
         // being clicked multiple times)
@@ -46,6 +54,12 @@ $(function() {
         // The currently running worker
         worker:null,
 
+        lasttime:null,
+
+        currentRow:0,
+
+        // Populated during drawing, but used at the end to show a histogram
+        // of time taken per pixel.
         frequency: {
             keys:{},
             increment: function(x) {
@@ -95,6 +109,14 @@ $(function() {
                     this.worker.addEventListener(
                         'message', $.proxy(this.draw, this), false
                     );
+                    break;
+                case "spiralout":
+                case "SPIRALOUT":
+                    this.worker = new Worker('spiral-out-generator.js');
+                    this.worker.addEventListener(
+                        'message', $.proxy(this.draw, this), false
+                    );
+                    break;
             }
 
             if (this.testHeatmapWorker !== null) {
@@ -106,15 +128,12 @@ $(function() {
             );
         },
 
-        lasttime:null,
-
-        currentRow:0,
         draw: function(e) {
             if (e.data.running == true) {
                 var colour = e.data.colour;
                 var coords = e.data.coordinates;
-
                 var now = Date.now();
+
                 if (e.data.rowComplete == true) {
                     this.plot(this.currentRow, (now - this.lastrowtime));
                     this.lastrowtime = now;
@@ -184,8 +203,6 @@ $(function() {
             this.heatmapexampleContext = this.heatmapexample.getContext('2d');
         },
 
-        heatmapWorker:null,
-
         begin: function() {
             if (this.running === true) {
                 return;
@@ -210,9 +227,6 @@ $(function() {
             this.running = true;
         },
 
-        testHeatmapWorker:null,
-        testHeatmapCanvas:null,
-        testHeatmapContext:null,
         testHeatmap: function() {
             this.testHeatmapWorker = new Worker('heatmap.js');
             this.testHeatmapWorker.addEventListener(

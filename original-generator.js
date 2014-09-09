@@ -1,19 +1,12 @@
-
+"use strict";
 function Point(r, g, b, a) {
     this.r = r;
     this.g = g;
     this.b = b;
     this.a = a;
 
-    this.componentToHex = function(c) {
-        var hex = c.toString(16);
-        return hex.length == 1 ? "0" + hex : hex;
-    };
     this.hash = function() {
-        return "#" + this.componentToHex(this.r) +
-                this.componentToHex(this.g) +
-                this.componentToHex(this.b) +
-                this.componentToHex(this.a);
+        return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
     };
     this.toSimpleObject = function() {
         return {
@@ -43,25 +36,20 @@ var OriginalGenerator = {
         for (var i = 0; i < this.width; i++) {
             var row = [];
             for (var j = 0; j < this.height; j++) {
-                row.push(
-                    new Point(
-                        this.defaultValue.r,
-                        this.defaultValue.g,
-                        this.defaultValue.b,
-                        this.defaultValue.a
-                    )
-                );
+                row.push(null);
             }
             this.memoryCanvas.push(row);
         }
     },
 
-    average: function(values) {
-        var sum = values.reduceRight(function(x, total) {
-            return total + x;
-        }, 0);
+    addLast: function(x, total) {
+        return total + x;
+    },
 
-        return Math.ceil(sum/values.length);
+    average: function(values) {
+        var sum = values.reduceRight(this.addLast, 0);
+
+        return Math.ceil(sum / values.length);
     },
 
     _getSurroundingColours: function(i, j) {
@@ -69,14 +57,14 @@ var OriginalGenerator = {
 
         var previousI = i - 1 < 0 ? 0 : i - 1;
         var previousJ = j - 1 < 0 ? 0 : j - 1;
-        var maxI = i + 1 >= this.width ? this.width -1 : i + 1;
-        var maxJ = j + 1 >= this.height ? this.height -1 : j + 1;
+        var maxI = i + 1 >= this.width ? this.width - 1 : i + 1;
+        var maxJ = j + 1 >= this.height ? this.height - 1 : j + 1;
         for (var x = previousI; x <= maxI; x++) {
-            var row = [];
             for (var y = previousJ; y <= maxJ; y++) {
-                row.push(this.memoryCanvas[x][y]);
+                if (this.memoryCanvas[x][y] !== null) {
+                    grid.push(this.memoryCanvas[x][y]);
+                }
             }
-            grid.push(row);
         }
 
         return grid;
@@ -90,35 +78,35 @@ var OriginalGenerator = {
         var greens = [];
         var blues = [];
         for (var i = 0; i < surroundingSquares.length; i++) {
-            var row = surroundingSquares[i];
-            for (var j = 0; j < row.length; j++) {
-                var colour = row[j];
-                if (!(colour.a === this.defaultValue.a &&
-                    colour.r === this.defaultValue.r &&
-                    colour.g === this.defaultValue.g &&
-                    colour.b === this.defaultValue.b
-                )) {
-                    reds.push(colour.r);
-                    greens.push(colour.g);
-                    blues.push(colour.b);
-                }
-            }
+            var colour = surroundingSquares[i];
+            reds.push(colour.r);
+            greens.push(colour.g);
+            blues.push(colour.b);
         }
 
-        var redAvg = Math.floor(Math.random() * 256);
+        var redAvg = 0;
         if (reds.length > 0) {
-            redAvg = Math.floor(this.average(reds));
+            redAvg = this.average(reds);
+        } else {
+            redAvg = Math.random() * 256;
         }
+        redAvg = Math.floor(redAvg);
 
-        var greenAvg = Math.floor(Math.random() * 256);
+        var greenAvg = 0;
         if (greens.length > 0) {
-            greenAvg = Math.floor(this.average(greens));
+            greenAvg = this.average(greens);
+        } else {
+            greenAvg = Math.random() * 256;
         }
+        greenAvg = Math.floor(greenAvg);
 
-        var blueAvg = Math.floor(Math.random() * 256);
+        var blueAvg = 0;
         if (blues.length > 0) {
-            blueAvg = Math.floor(this.average(blues));
+            blueAvg = this.average(blues);
+        } else {
+            blueAvg = Math.random() * 256;
         }
+        blueAvg = Math.floor(blueAvg);
 
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
@@ -126,7 +114,7 @@ var OriginalGenerator = {
 
         if (this.usedColours.indexOf(possible) >= 0) {
             // Already used this colour
-            found = false;
+            var found = false;
             var radiusStep = 1;
             var minDist = 1;
 
@@ -158,9 +146,9 @@ var OriginalGenerator = {
                     maxBlue = 255;
                 }
 
-                for (i = minRed; i <= maxRed; i++) {
-                    for (j = minGreen; j <= maxGreen; j++) {
-                        for (k = minBlue; k <= maxBlue; k++) {
+                for (var i = minRed; i <= maxRed; i++) {
+                    for (var j = minGreen; j <= maxGreen; j++) {
+                        for (var k = minBlue; k <= maxBlue; k++) {
                             var distance = this.distance(i, j, k, redAvg, greenAvg, blueAvg);
                             if (distance <= maxDist && distance > minDist) {
                                 potential.r = i;

@@ -19,7 +19,7 @@ function Point(r, g, b, a) {
 }
 
 // Singleton generator
-var SpiralGenerator = {
+var SpiralOutGenerator = {
     memoryCanvas: [],
     usedColours:[],
     width:0,
@@ -43,9 +43,10 @@ var SpiralGenerator = {
             this.memoryCanvas.push(row);
         }
 
-        var x = Math.floor(Math.random() * this.width);
-        var y = Math.floor(Math.random() * this.height);
+        var x = Math.floor(this.width / 2);
+        var y = Math.floor(this.height / 2);
         this.lastPosition = {'x':x, 'y':y};
+        this.lastDirection = 'n';
     },
 
     pixelsRemaining: function() {
@@ -57,7 +58,7 @@ var SpiralGenerator = {
             return total + x;
         }, 0);
 
-        return Math.ceil(sum/values.length);
+        return Math.ceil(sum / values.length);
     },
 
     _getSurroundingColours: function(i, j) {
@@ -199,54 +200,134 @@ var SpiralGenerator = {
 
             // Do we have a direction?
             if (this.lastDirection !== '') {
-                // Can we proceed in the given direction?
+                // Do we have to maintain the direction, or can we turn a corner?
                 switch(this.lastDirection) {
                     case 'n':
-                        if ((y - 1 >= 0) && this._check(x, y - 1)) {
+                        // We'd like to go east if at all possible
+                        // Else, continue north.
+                        if ((x + 1 < this.width) && this._check(x + 1, y)) {
+                            position = {'x':x + 1, 'y':y};
+                            this.lastDirection = 'e';
+                        } else if ((y - 1 >= 0) && this._check(x, y - 1)) {
                             position = {'x':x, 'y':y - 1};
+                            this.lastDirection = 'n';
                         }
                         break;
                     case 'e':
-                        if ((x + 1 < this.width) && this._check(x + 1, y)) {
+                        // We'd like to go south if at all possible
+                        // Else, continue east
+                        if ((y + 1 < this.height) && this._check(x, y + 1)) {
+                            position = {'x': x, 'y': y + 1};
+                            this.lastDirection = 's';
+                        } else if ((x + 1 < this.width) && this._check(x + 1, y)) {
                             position = {'x':x + 1, 'y': y};
+                            this.lastDirection = 'e';
                         }
                         break;
                     case 's':
-                        if ((y + 1 < this.height) && this._check(x, y + 1)) {
+                        // We'd like to go west if at all possible
+                        // Else continue south
+                        if ((x - 1 >= 0) && this._check(x - 1, y)) {
+                            this.lastDirection = 'w';
+                            position = {'x':x - 1, 'y':y};
+                        } else if ((y + 1 < this.height) && this._check(x, y + 1)) {
+                            this.lastDirection = 's';
                             position = {'x':x, 'y':y + 1};
                         }
                         break;
                     case 'w':
-                        if ((x - 1 >= 0) && this._check(x - 1, y)) {
+                        // We'd like to go north if at all possible
+                        // Else continue west
+                        if ((y - 1 >= 0) && this._check(x, y - 1)) {
+                            position = {'x':x, 'y':y - 1};
+                            this.lastDirection = 'n';
+                        } else if ((x - 1 >= 0) && this._check(x - 1, y)) {
                             position = {'x':x - 1, 'y':y};
+                            this.lastDirection = 'w';
                         }
                         break;
                 }
             }
 
+            // It's possible that we won't be able to spiral the way we'd like.
+            // This is easiest to visualise with a rectangle of sides n, m where
+            // n << m
+            // In these situations we'll skip over the area that's in use
+            // until we find a point we can fill in.
             while (position.hasOwnProperty('x') === false) {
-                if ((y - 1 >= 0) && this._check(x, y - 1)) {
-                    position = {'x':x, 'y':y - 1};
-                    this.lastDirection = 'n';
-                }
-                else if ((x + 1 < this.width) && this._check(x + 1, y)) {
-                    position = {'x':x + 1, 'y': y};
-                    this.lastDirection = 'e';
-                }
-                else if ((y + 1 < this.height) && this._check(x, y + 1)) {
-                    position = {'x':x, 'y':y + 1};
-                    this.lastDirection = 's';
-                }
-                else if ((x - 1 >= 0) && this._check(x - 1, y)) {
-                    position = {'x':x - 1, 'y':y};
-                    this.lastDirection = 'w';
-                } else {
-                    x = Math.floor(Math.random() * this.width);
-                    y = Math.floor(Math.random() * this.height);
-                    if (this._check(x, y)) {
-                        position = {'x':x, 'y':y};
-                    }
-                    this.lastDirection = '';
+                var found = false;
+                switch (this.lastDirection) {
+                    case 'n':
+                        // We'd like to go east if possible
+                        for (var i = this.lastPosition.x; i < this.width; i++) {
+                            if (this._check(i, this.lastPosition.y)) {
+                                position = {'x':i, 'y':this.lastPosition.y};
+                                found = true;
+                                break;
+                            }
+                        }
+                        // There weren't any missing points going east, so
+                        // instead say we went east as far as possible and look
+                        // again.
+                        if (found === false) {
+                            this.lastPosition = {
+                                'x':this.width - 1,
+                                'y':this.lastPosition.y
+                            };
+                            this.lastDirection = 'e';
+                        }
+                        break;
+                    case 'e':
+                        // We'd like to go south if possible.
+                        for (var i = this.lastPosition.y; i < this.height; i++) {
+                            if (this._check(this.lastPosition.x, i)) {
+                                position = {'x':this.lastPosition.x, 'y':i};
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found === false) {
+                            this.lastPosition = {
+                                'x':this.width - 1,
+                                'y':this.height - 1
+                            };
+                            this.lastDirection = 's';
+                        }
+                        break;
+                    case 's':
+                        // We'd like to go west if possible.
+                        for (var i = this.lastPosition.x; i >= 0; i--) {
+                            if (this._check(i, this.lastPosition.y)) {
+                                position = {'x':i, 'y':this.lastPosition.y};
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found === false) {
+                            this.lastPosition = {
+                                'x':0,
+                                'y':this.height - 1
+                            };
+                            this.lastDirection = 'w';
+                        }
+                        break;
+                    case 'w':
+                        // We'd like to go north if possible.
+                        for (var i = this.lastPosition.y; i >= 0; i--) {
+                            if (this._check(this.lastPosition.x, i)) {
+                                position = {'x':this.lastPosition.x, 'y':i};
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found === false) {
+                            this.lastPosition = {
+                                'x':0,
+                                'y':0
+                            };
+                            this.lastDirection = 'n';
+                        }
+                        break;
                 }
             }
             this.lastPosition = position;
@@ -256,7 +337,6 @@ var SpiralGenerator = {
     },
 
     _check: function(x, y) {
-        var point = this.memoryCanvas[x][y];
         return (this.memoryCanvas[x][y] === null);
     }
 }
@@ -267,12 +347,12 @@ self.addEventListener('message', function(e) {
     var width = canvas.width;
     var height = canvas.height;
     var defaultValue = data.default;
-    SpiralGenerator.init(canvas, defaultValue);
+    SpiralOutGenerator.init(canvas, defaultValue);
 
     var i = 0;
-    var coordinates = SpiralGenerator.lastPosition;
-    while (SpiralGenerator.pixelsRemaining() === true) {
-        var colour = SpiralGenerator.generate(coordinates.x, coordinates.y);
+    var coordinates = SpiralOutGenerator.lastPosition;
+    while (SpiralOutGenerator.pixelsRemaining() === true) {
+        var colour = SpiralOutGenerator.generate(coordinates.x, coordinates.y);
 
         self.postMessage({
             'running': true,
@@ -280,8 +360,8 @@ self.addEventListener('message', function(e) {
             'coordinates':coordinates,
             'rowComplete':(i % height === 0)
         });
-        SpiralGenerator.record(coordinates.x, coordinates.y, colour);
-        coordinates = SpiralGenerator.move();
+        SpiralOutGenerator.record(coordinates.x, coordinates.y, colour);
+        coordinates = SpiralOutGenerator.move();
         i++;
     }
 

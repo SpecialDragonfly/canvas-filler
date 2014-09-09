@@ -1,18 +1,12 @@
+"use strict";
 function Point(r, g, b, a) {
     this.r = r;
     this.g = g;
     this.b = b;
     this.a = a;
 
-    this.componentToHex = function(c) {
-        var hex = c.toString(16);
-        return hex.length == 1 ? "0" + hex : hex;
-    };
     this.hash = function() {
-        return "#" + this.componentToHex(this.r) +
-                this.componentToHex(this.g) +
-                this.componentToHex(this.b) +
-                this.componentToHex(this.a);
+        return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
     };
     this.toSimpleObject = function() {
         return {

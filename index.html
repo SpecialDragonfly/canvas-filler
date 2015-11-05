@@ -1,15 +1,26 @@
 <html>
     <head>
         <title>Canvas Test</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
         <script type='text/javascript' src='jquery-2.1.1.min.js'></script>
         <script type='text/javascript' src='jquery.flot.min.js'></script>
         <script type='text/javascript' src='canvas.js'></script>
         <style type='text/css'>
+            * {
+              box-sizing:border-box;
+            }
+
+            body {
+              padding:0px;
+              margin:0px;
+              font-family: Verdana, Geneva, sans-serif;
+              font-size:14px;
+            }
+
             #flotchart {
                 width:500px;
                 height:500px;
                 border:1px solid black;
-                float:right;
             }
 
             #timefrequency {
@@ -35,22 +46,24 @@
             }
 
             .header {
-                height:40px;
-                display:static;
+                padding:5px;
             }
-
 
             .header canvas {
                 display:block;
             }
 
             .main {
-                margin-top:40px;
+                padding:5px;
             }
         </style>
     </head>
     <body>
         <div class='header'>
+            <section>
+                <h1>All colours in one image</h1>
+                <p>Inspired by: https://medium.com/@kapuramax/procedural-image-generation-in-go-7a57ff2e2e90</p>
+            </section>
             <button id='start'>Start</button>
             <button id='heatmaptest'>Heatmap Test</button>
             <select id="method">
@@ -73,10 +86,26 @@
             <canvas id='heatmapexample'></canvas>
         </div>
         <div class='main'>
-            <canvas id='area' width='64px' height='64px'></canvas>
-            <canvas id='heatmap' width='64' height='64'></canvas>
+            <section>
+                <h2>The generated image is here</h2>
+                <canvas id='area' width='64px' height='64px'></canvas>
+            </section>
+            <section>
+                <h2>An image showing the relative length of time it took to generate each pixel</h2>
+                <canvas id='heatmap' width='64' height='64'></canvas>
+            </section>
+        </div>
+        <div>
+            <h2>Histogram of time taken per pixel</h2>
             <div id='timefrequency'></div>
+            <h2>Time taken for one row in ms</h2>
             <div id="flotchart"></div>
+        </div>
+        <div>
+            <h2>Todo:</h2>
+            <ul>
+                <li>Lock canvas?</li>
+            </ul>
         </div>
     </body>
 </html>

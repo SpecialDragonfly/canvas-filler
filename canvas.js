@@ -23,6 +23,12 @@ $(function() {
         canvas:null,
         // 2D context for the canvas object for the image
         context:null,
+        // A 1x1 pixel image data area
+        smallImageData:null,
+        // The imageData for the smallImageData object.
+        px:null,
+        // Full image data for entire canvas.
+        imageData:null,
         // Last time a row or column was completed
         lastrowtime: 0,
 
@@ -139,10 +145,13 @@ $(function() {
                     this.lastrowtime = now;
                     this.currentRow++;
                 }
-                this.context.fillStyle = window.ImageUtils.rgbToHex(
-                    colour.r, colour.g, colour.b
-                );
-                this.context.fillRect(coords.x, coords.y, 1, 1);
+
+                this.px[0] = colour.r;
+                this.px[1] = colour.g;
+                this.px[2] = colour.b
+                this.px[3] = 255;
+                this.context.putImageData(this.smallImageData, coords.x, coords.y);
+
                 this.heatmapWorker.postMessage({
                     'time':(now - this.lasttime),
                     'coords':{
@@ -193,6 +202,9 @@ $(function() {
             // Where the colours go
             this.canvas = $(document).find("#area")[0];
             this.context = this.canvas.getContext('2d');
+            this.imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            this.smallImageData = this.context.createImageData(1, 1);
+            this.px = this.smallImageData.data;
 
             // Main heatmap area
             this.heatmap = $(document).find("#heatmap")[0];

@@ -29,7 +29,7 @@ var Map = {
     coloursLength:0,
 
     init: function() {
-        console.log("heat map initilized");
+        console.log("Heatmap: Initilized");
         r = 0;
         g = 0;
         b = 0;
@@ -61,7 +61,7 @@ var Map = {
             this.colours.push(new Point(r, g, b));
         }
 
-        console.log("Using " + this.colours.length + " colours");
+        console.log("Heatmap: Using " + this.colours.length + " colours");
         this.coloursLength = this.colours.length;
     },
 

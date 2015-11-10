@@ -36,6 +36,9 @@ $(function() {
         heatmap:null,
         heatmapContext:null,
         heatmapWorker:null,
+        heatMapImageData: null,
+        heatMapSmallImageData: null,
+        heatMapPx:null,
 
         // Everything required for the example of the heatmap.
         testHeatmapWorker:null,
@@ -178,10 +181,11 @@ $(function() {
         drawHeatmap: function(e) {
             var colour = e.data.colour;
             var coords = e.data.coordinates;
-            this.heatmapContext.fillStyle = window.ImageUtils.rgbToHex(
-                colour.r, colour.g, colour.b
-            );
-            this.heatmapContext.fillRect(coords.x, coords.y, 1, 1);
+            this.heatMapPx[0] = colour.r;
+            this.heatMapPx[1] = colour.g;
+            this.heatMapPx[2] = colour.b
+            this.heatMapPx[3] = 255;
+            this.heatmapContext.putImageData(this.heatMapSmallImageData, coords.x, coords.y);
         },
 
         plot: function(x, value) {
@@ -209,6 +213,9 @@ $(function() {
             // Main heatmap area
             this.heatmap = $(document).find("#heatmap")[0];
             this.heatmapContext = this.heatmap.getContext('2d');
+            this.heatMapImageData = this.heatmapContext.getImageData(0, 0, this.heatmap.width, this.heatmap.height);
+            this.heatMapSmallImageData = this.heatmapContext.createImageData(1, 1);
+            this.heatMapPx = this.heatMapSmallImageData.data;
 
             // Area for example of colours used in the heatmap
             this.heatmapexample = $(document).find("#heatmapexample")[0];
@@ -288,9 +295,9 @@ $(function() {
     }, false);
 
     $(document).find("#size").on('change', function() {
-            var val = $(this).val();
-            $(window.Image.canvas).attr({'width':val, 'height':val});
-            $(window.Image.heatmap).attr({'width':val, 'height':val});
+        var val = $(this).val();
+        $(window.Image.canvas).attr({'width':val, 'height':val});
+        $(window.Image.heatmap).attr({'width':val, 'height':val});
     });
 
     window.Image.init();

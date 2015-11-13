@@ -21,10 +21,10 @@ function Point(r, g, b, a) {
 // Singleton generator
 var OriginalGenerator = {
     memoryCanvas: [],
-    usedColours:[],
     width:0,
     height:0,
     defaultValue:{'r':0,'g':0,'b':0},
+    colourArray:[],
 
     init: function(canvas, defaultValue) {
         if (typeof(defaultValue) != 'undefined') {
@@ -40,16 +40,41 @@ var OriginalGenerator = {
             }
             this.memoryCanvas.push(row);
         }
-    },
-
-    addLast: function(x, total) {
-        return total + x;
+        for (var r = 0; r < 256; r++) {
+            var row = [];
+            for (var g = 0; g < 256; g++) {
+                var column = []
+                for (var b = 0; b < 256; b++) {
+                    column.push(true);
+                }
+                row.push(column);
+            }
+            this.colourArray.push(row);
+        }
     },
 
     average: function(values) {
-        var sum = values.reduceRight(this.addLast, 0);
+        // Unrolled loop turned out to be the fastest way to sum an array.
+        // https://jsperf.com/array-summing-loop-vs-eval/10
+        var sum = 0;
+        var len = values.length;
+        var n = Math.floor(len / 8);
+        for (var i = 0; i < n; ++i) {
+            var base = i * 8;
+            sum += values[base];
+            sum += values[base + 1];
+            sum += values[base + 2];
+            sum += values[base + 3];
+            sum += values[base + 4];
+            sum += values[base + 5];
+            sum += values[base + 6];
+            sum += values[base + 7];
+        }
+        for (var i = n*8; i < len; ++i) {
+            sum += values[i];
+        }
 
-        return Math.ceil(sum / values.length);
+        return Math.ceil(sum / len);
     },
 
     _getSurroundingColours: function(i, j) {
@@ -72,7 +97,7 @@ var OriginalGenerator = {
 
     generate: function(i, j) {
 
-        // surroundingSquares is an n x n grid (min n = 2, max n = 3)
+        // surroundingSquares is an n x n grid (min n = 2x2, max n = 3x3)
         var surroundingSquares = this._getSurroundingColours(i, j);
         var reds = [];
         var greens = [];
@@ -110,9 +135,7 @@ var OriginalGenerator = {
 
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
-        var possible = potential.hash();
-
-        if (this.usedColours.indexOf(possible) >= 0) {
+        if (this.colourArray[redAvg][greenAvg][blueAvg] === false) {
             // Already used this colour
             var found = false;
             var radiusStep = 1;
@@ -150,15 +173,12 @@ var OriginalGenerator = {
                     for (var j = minGreen; j <= maxGreen; j++) {
                         for (var k = minBlue; k <= maxBlue; k++) {
                             var distance = this.distance(i, j, k, redAvg, greenAvg, blueAvg);
-                            if (distance <= maxDist && distance > minDist) {
+                            if (distance <= maxDist && distance > minDist && this.colourArray[i][j][k] === true) {
                                 potential.r = i;
                                 potential.g = j;
                                 potential.b = k;
-                                possible = potential.hash();
-                                if (this.usedColours.indexOf(possible) < 0) {
-                                    found = true;
-                                    break;
-                                }
+                                found = true;
+                                break;
                             }
                         }
                         if (found) {
@@ -188,7 +208,7 @@ var OriginalGenerator = {
     },
 
     record: function(i, j, colour) {
-        this.usedColours.push(colour.hash());
+        this.colourArray[colour.r][colour.g][colour.b] = false;
         this.memoryCanvas[i][j] = colour;
     }
 }

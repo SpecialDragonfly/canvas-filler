@@ -131,10 +131,12 @@ $(function() {
             if (this.testHeatmapWorker !== null) {
                 this.testHeatmapWorker.terminate();
             }
-            this.heatmapWorker = new Worker('heatmap.js');
-            this.heatmapWorker.addEventListener(
-                'message', $.proxy(this.drawHeatmap, this), false
-            );
+            if (this.canDrawHeatmap) {
+                this.heatmapWorker = new Worker('heatmap.js');
+                this.heatmapWorker.addEventListener(
+                    'message', $.proxy(this.drawHeatmap, this), false
+                );
+            }
         },
 
         draw: function(e) {
@@ -155,13 +157,15 @@ $(function() {
                 this.px[3] = 255;
                 this.context.putImageData(this.smallImageData, coords.x, coords.y);
 
-                this.heatmapWorker.postMessage({
-                    'time':(now - this.lasttime),
-                    'coords':{
-                        'x':coords.x,
-                        'y':coords.y
-                    }
-                });
+                if (this.canDrawHeatmap) {
+                    this.heatmapWorker.postMessage({
+                        'time':(now - this.lasttime),
+                        'coords':{
+                            'x':coords.x,
+                            'y':coords.y
+                        }
+                    });
+                }
                 this.frequency.increment(now - this.lasttime);
 
                 this.lasttime = now;
@@ -175,6 +179,7 @@ $(function() {
                 );
                 console.log("Finished at: " + Date.now());
                 this.running = false;
+                console.log("Took: " + (Date.now() - this.started));
             }
         },
 
@@ -210,24 +215,30 @@ $(function() {
             this.smallImageData = this.context.createImageData(1, 1);
             this.px = this.smallImageData.data;
 
-            // Main heatmap area
             this.heatmap = $(document).find("#heatmap")[0];
-            this.heatmapContext = this.heatmap.getContext('2d');
-            this.heatMapImageData = this.heatmapContext.getImageData(0, 0, this.heatmap.width, this.heatmap.height);
-            this.heatMapSmallImageData = this.heatmapContext.createImageData(1, 1);
-            this.heatMapPx = this.heatMapSmallImageData.data;
 
             // Area for example of colours used in the heatmap
             this.heatmapexample = $(document).find("#heatmapexample")[0];
             this.heatmapexampleContext = this.heatmapexample.getContext('2d');
         },
 
+        started: null,
+        canDrawHeatmap:false,
         begin: function() {
             if (this.running === true) {
                 return;
             }
 
             $.plot($("#flotchart"), [this.chartData]);
+
+            this.canDrawHeatmap = $(document).find("#createheatmap option:selected").val() === 'yes';
+            // Main heatmap area
+            if (this.canDrawHeatmap) {
+                this.heatmapContext = this.heatmap.getContext('2d');
+                this.heatMapImageData = this.heatmapContext.getImageData(0, 0, this.heatmap.width, this.heatmap.height);
+                this.heatMapSmallImageData = this.heatmapContext.createImageData(1, 1);
+                this.heatMapPx = this.heatMapSmallImageData.data;
+            }
 
             var method = $(document).find("#method option:selected").val();
             this.setMethod(method);
@@ -244,6 +255,7 @@ $(function() {
                 'default':this.defaultValue
             });
             this.running = true;
+            this.started = Date.now();
         },
 
         testHeatmap: function() {

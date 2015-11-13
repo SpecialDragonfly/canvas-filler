@@ -5,9 +5,6 @@ function Point(r, g, b, a) {
     this.b = b;
     this.a = a;
 
-    this.hash = function() {
-        return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
-    };
     this.toSimpleObject = function() {
         return {
             'r':this.r,
@@ -21,14 +18,26 @@ function Point(r, g, b, a) {
 // Singleton generator
 var PathGenerator = {
     memoryCanvas: {},
-    usedColours:[],
     usedColourCount:0,
     width:0,
     height:0,
     defaultValue:{'r':0,'g':0,'b':0},
     lastPosition:null,
+    colourArray:[],
 
     init: function(canvas, defaultValue) {
+        for (var r = 0; r < 256; r++) {
+            var row = [];
+            for (var g = 0; g < 256; g++) {
+                var column = []
+                for (var b = 0; b < 256; b++) {
+                    column.push(true);
+                }
+                row.push(column);
+            }
+            this.colourArray.push(row);
+        }
+
         if (typeof(defaultValue) != 'undefined') {
             this.defaultValue = defaultValue;
         }
@@ -113,9 +122,7 @@ var PathGenerator = {
 
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
-        var possible = potential.hash();
-
-        if (this.usedColours.indexOf(possible) >= 0) {
+        if (this.colourArray[redAvg][greenAvg][blueAvg] === false) {
             // Already used this colour
             var found = false;
             var radiusStep = 1;
@@ -156,15 +163,12 @@ var PathGenerator = {
                             var distance = this.distance(
                                 i, j, k, redAvg, greenAvg, blueAvg
                             );
-                            if (distance <= maxDist && distance > minDist) {
+                            if (distance <= maxDist && distance > minDist && this.colourArray[redAvg][greenAvg][blueAvg] === false) {
                                 potential.r = i;
                                 potential.g = j;
                                 potential.b = k;
-                                possible = potential.hash();
-                                if (this.usedColours.indexOf(possible) < 0) {
-                                    found = true;
-                                    break;
-                                }
+                                found = true;
+                                break;
                             }
                         }
                         if (found) {
@@ -194,7 +198,7 @@ var PathGenerator = {
     },
 
     record: function(i, j, colour) {
-        this.usedColours.push(colour.hash());
+        this.colourArray[colour.r][colour.g][colour.b] = true;
         this.usedColourCount++;
         if (this.memoryCanvas.hasOwnProperty(i)) {
             this.memoryCanvas[i][j] = colour;

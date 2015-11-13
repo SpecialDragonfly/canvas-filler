@@ -126,6 +126,13 @@ $(function() {
                         'message', $.proxy(this.draw, this), false
                     );
                     break;
+                case "originalsetinterval":
+                case "ORIGINALSETINTERVAL":
+                    this.worker = new Worker('original-setinterval-generator.js');
+                    this.worker.addEventListener(
+                        'message', $.proxy(this.draw, this), false
+                    );
+                    break;
             }
 
             if (this.testHeatmapWorker !== null) {
@@ -155,7 +162,11 @@ $(function() {
                 this.px[1] = colour.g;
                 this.px[2] = colour.b
                 this.px[3] = 255;
-                this.context.putImageData(this.smallImageData, coords.x, coords.y);
+                this.offscreenCanvasContext.putImageData(this.smallImageData, coords.x, coords.y);
+
+                if (this.isRealTime) {
+                    setTimeout($.proxy(this.copyFromMemoryToPage(), this), 10);
+                }
 
                 if (this.canDrawHeatmap) {
                     this.heatmapWorker.postMessage({
@@ -177,6 +188,8 @@ $(function() {
                         'bars':{'show':true}
                     }]
                 );
+
+                this.copyFromMemoryToPage();
                 console.log("Finished at: " + Date.now());
                 this.running = false;
                 console.log("Took: " + (Date.now() - this.started));
@@ -190,7 +203,7 @@ $(function() {
             this.heatMapPx[1] = colour.g;
             this.heatMapPx[2] = colour.b
             this.heatMapPx[3] = 255;
-            this.heatmapContext.putImageData(this.heatMapSmallImageData, coords.x, coords.y);
+            this.offscreenHeatmapContext.putImageData(this.offscreenHeatMapSmallImageData, coords.x, coords.y);
         },
 
         plot: function(x, value) {
@@ -207,13 +220,14 @@ $(function() {
             this.context.putImageData(imData, 0, 0);
         },
 
+        offscreenCanvas:null,
+        offscreenCanvasContext:null,
+        offscreenImageData:null,
         init: function() {
-            // Where the colours go
+            // The canvas the user can see
             this.canvas = $(document).find("#area")[0];
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-            this.smallImageData = this.context.createImageData(1, 1);
-            this.px = this.smallImageData.data;
 
             this.heatmap = $(document).find("#heatmap")[0];
 
@@ -224,22 +238,44 @@ $(function() {
 
         started: null,
         canDrawHeatmap:false,
+        isRealTime:false,
+        offscreenHeatmap:null,
+        offscreenHeatmapContext:null,
+        offscreenHeatMapImageData:null,
+        offscreenHeatMapSmallImageData:null,
         begin: function() {
             if (this.running === true) {
                 return;
             }
 
+            // The canvas that's purely in memory.
+            this.offscreenCanvas = document.createElement('canvas');
+            this.offscreenCanvas.width = this.canvas.width;
+            this.offscreenCanvas.height = this.canvas.height;
+            this.offscreenCanvasContext = this.offscreenCanvas.getContext('2d');
+            this.offscreenImageData = this.offscreenCanvasContext.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            this.smallImageData = this.offscreenCanvasContext.createImageData(1, 1);
+            this.px = this.smallImageData.data;           
+
             $.plot($("#flotchart"), [this.chartData]);
 
             this.canDrawHeatmap = $(document).find("#createheatmap option:selected").val() === 'yes';
+            this.isRealTime = $(document).find("#drawstyle option:selected").val() === 'realtime';
+
             // Main heatmap area
             if (this.canDrawHeatmap) {
                 this.heatmapContext = this.heatmap.getContext('2d');
-                this.heatMapImageData = this.heatmapContext.getImageData(0, 0, this.heatmap.width, this.heatmap.height);
-                this.heatMapSmallImageData = this.heatmapContext.createImageData(1, 1);
-                this.heatMapPx = this.heatMapSmallImageData.data;
+
+                this.offscreenHeatmap = document.createElement('canvas');
+                this.offscreenHeatmap.width = this.canvas.width;
+                this.offscreenHeatmap.height = this.canvas.height;
+                this.offscreenHeatmapContext = this.offscreenHeatmap.getContext('2d');
+                this.offscreenHeatMapImageData = this.offscreenHeatmapContext.getImageData(0, 0, this.heatmap.width, this.heatmap.height);
+                this.offscreenHeatMapSmallImageData = this.offscreenHeatmapContext.createImageData(1, 1);
+                this.heatMapPx = this.offscreenHeatMapSmallImageData.data;
             }
 
+            this.copyFromMemoryToPage();
             var method = $(document).find("#method option:selected").val();
             this.setMethod(method);
 
@@ -256,6 +292,13 @@ $(function() {
             });
             this.running = true;
             this.started = Date.now();
+        },
+
+        copyFromMemoryToPage: function() {
+            this.context.drawImage(this.offscreenCanvas, 0, 0);
+            if (this.canDrawHeatmap) {
+                this.heatmapContext.drawImage(this.offscreenHeatmap, 0, 0);
+            }
         },
 
         testHeatmap: function() {

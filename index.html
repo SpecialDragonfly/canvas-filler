@@ -68,6 +68,7 @@
             <button id='heatmaptest'>Heatmap Test</button>
             <select id="method">
                 <option value="original">Original</option>
+                <option value="originalsetinterval">Original++</option>
                 <option value="iterate">Iterate</option>
                 <option value="path">Path</option>
                 <option value="spiral">Spiral In</option>
@@ -86,6 +87,10 @@
             <select id='createheatmap'>
                 <option value='yes'>Create Heatmap</option>
                 <option value='no'>Ignore Heatmap</option>
+            </select>
+            <select id='drawstyle'>
+                <option value='realtime'>Draw in realtime</option>
+                <option value='allatonce'>Draw all at once</option>
             </select>
             <canvas id='heatmapexample'></canvas>
         </div>

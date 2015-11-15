@@ -5,9 +5,6 @@ function Point(r, g, b, a) {
     this.b = b;
     this.a = a;
 
-    this.hash = function() {
-        return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
-    };
     this.toSimpleObject = function() {
         return {
             'r':this.r,
@@ -25,6 +22,9 @@ var OriginalGenerator = {
     height:0,
     defaultValue:{'r':0,'g':0,'b':0},
     colourArray:[],
+    imageData: null,
+    _isRunning:true,
+    heatmap:[],
 
     init: function(canvas, defaultValue) {
         if (typeof(defaultValue) != 'undefined') {
@@ -32,6 +32,7 @@ var OriginalGenerator = {
         }
         this.width = canvas.width;
         this.height = canvas.height;
+        this.imageData = canvas.imageData;
 
         for (var i = 0; i < this.width; i++) {
             var row = [];
@@ -96,7 +97,7 @@ var OriginalGenerator = {
     },
 
     generate: function(i, j) {
-
+        var pixelStart = Date.now();
         // surroundingSquares is an n x n grid (min n = 2x2, max n = 3x3)
         var surroundingSquares = this._getSurroundingColours(i, j);
         var reds = [];
@@ -195,6 +196,7 @@ var OriginalGenerator = {
                 }
             }
         }
+        this.heatmap.push(Date.now() - pixelStart);
 
         return potential;
     },
@@ -208,31 +210,65 @@ var OriginalGenerator = {
     },
 
     record: function(i, j, colour) {
+        var basePixel = (j * this.height + i) * 4;
         this.colourArray[colour.r][colour.g][colour.b] = false;
         this.memoryCanvas[i][j] = colour;
+        this.imageData.data[basePixel] = colour.r;
+        this.imageData.data[basePixel + 1] = colour.g;
+        this.imageData.data[basePixel + 2] = colour.b;
+        this.imageData.data[basePixel + 3] = 255;
+    },
+
+    createImage: function() {
+        for (var i = 0; i < this.width; i++) {
+            for (var j = 0; j < this.height; j++) {
+                var colour = this.generate(i, j);
+                this.record(i, j, colour);
+            }
+        }
+        this._isRunning = false;
+    },
+
+    isRunning: function() {
+        return this._isRunning;
+    },
+    getData: function() {
+        return this.imageData;
+    },
+    getHeatmapData: function() {
+        return this.heatmap;
     }
 }
 
 self.addEventListener('message', function(e) {
     var data = e.data;
-    var canvas = data.canvas;
-    var width = canvas.width;
-    var height = canvas.height;
-    var defaultValue = data.default;
-    OriginalGenerator.init(canvas, defaultValue);
-    for (var i = 0; i < width; i++) {
-        for (var j = 0; j < height; j++) {
-            var colour = OriginalGenerator.generate(i, j);
-            OriginalGenerator.record(i, j, colour);
+    switch(data.cmd) {
+        case 'start':
+            var canvas = data.canvas;
+            var defaultValue = data.default;
+            OriginalGenerator.init(canvas, defaultValue);
+            OriginalGenerator.createImage();
+            break;
+        case 'getData':
             self.postMessage({
-                'running': true,
-                'colour':colour.toSimpleObject(),
-                'coordinates':{'x':i, 'y':j},
-                'rowComplete':(j + 1 == height)
+                'running':OriginalGenerator.isRunning(),
+                'imageData':OriginalGenerator.getData()
             });
-        }
+            break;
+        case 'abilities':
+            self.postMessage({
+                'abilities':{
+                    'heatmap':true
+                }
+            });
+            break;
+        case 'heatmap':
+            self.postMessage({
+                'heatmap':OriginalGenerator.getHeatmapData()
+            });
+            break;
+        case 'close':
+            self.close();
+            break;
     }
-    // Tidy up the worker thread
-    self.postMessage({'running':false});
-    self.close();
 }, false);

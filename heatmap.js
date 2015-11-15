@@ -85,6 +85,23 @@ self.addEventListener('message', function(e) {
                 'x':i
             });
         }
+    } else if (e.data.complete === true) {
+        var data = e.data.timings;
+        var width = e.data.width;
+        var height = e.data.height;
+        var imageData = new Uint8ClampedArray(data.length * 4);
+        //var imageData = new ImageData(underlyingArray, width, height);
+        var imageDataCount = 0;
+        for (var i = 0, length = data.length; i < length; i++) {
+            var colour = Map.getColourForValue(data[i]);
+            imageData[imageDataCount++] = colour.r;
+            imageData[imageDataCount++] = colour.g;
+            imageData[imageDataCount++] = colour.b;
+            imageData[imageDataCount++] = 255;
+        }
+        self.postMessage({
+            'timings':imageData
+        });
     } else {
         self.postMessage({
             'colour':Map.getColourForValue(time).toSimpleObject(),

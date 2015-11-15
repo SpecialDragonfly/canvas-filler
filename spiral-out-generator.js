@@ -21,12 +21,16 @@ function Point(r, g, b, a) {
 // Singleton generator
 var SpiralOutGenerator = {
     memoryCanvas: [],
-    usedColours:[],
+    colourArray:[],
     width:0,
     height:0,
     defaultValue:{'r':0,'g':0,'b':0},
     lastPosition:null,
     lastDirection:'',
+    _isRunning:false,
+    imageData:null,
+    heatmapData:[],
+    colourCount:0,
 
     init: function(canvas, defaultValue) {
         if (typeof(defaultValue) != 'undefined') {
@@ -34,6 +38,7 @@ var SpiralOutGenerator = {
         }
         this.width = canvas.width;
         this.height = canvas.height;
+        this.imageData = canvas.imageData;
 
         for (var i = 0; i < this.width; i++) {
             var row = [];
@@ -41,6 +46,17 @@ var SpiralOutGenerator = {
                 row.push(null);
             }
             this.memoryCanvas.push(row);
+        }
+        for (var r = 0; r < 256; r++) {
+            var row = [];
+            for (var g = 0; g < 256; g++) {
+                var column = []
+                for (var b = 0; b < 256; b++) {
+                    column.push(true);
+                }
+                row.push(column);
+            }
+            this.colourArray.push(row);
         }
 
         var x = Math.floor(this.width / 2);
@@ -50,15 +66,31 @@ var SpiralOutGenerator = {
     },
 
     pixelsRemaining: function() {
-        return ((this.width * this.height) - this.usedColours.length) > 0;
+        return ((this.width * this.height) - this.colourCount) > 0;
     },
 
     average: function(values) {
-        var sum = values.reduceRight(function(x, total) {
-            return total + x;
-        }, 0);
+        // Unrolled loop turned out to be the fastest way to sum an array.
+        // https://jsperf.com/array-summing-loop-vs-eval/10
+        var sum = 0;
+        var len = values.length;
+        var n = Math.floor(len / 8);
+        for (var i = 0; i < n; ++i) {
+            var base = i * 8;
+            sum += values[base];
+            sum += values[base + 1];
+            sum += values[base + 2];
+            sum += values[base + 3];
+            sum += values[base + 4];
+            sum += values[base + 5];
+            sum += values[base + 6];
+            sum += values[base + 7];
+        }
+        for (var i = n*8; i < len; ++i) {
+            sum += values[i];
+        }
 
-        return Math.ceil(sum / values.length);
+        return Math.ceil(sum / len);
     },
 
     _getSurroundingColours: function(i, j) {
@@ -90,7 +122,23 @@ var SpiralOutGenerator = {
         return Math.floor(x);
     },
 
+    createImage: function() {
+        this._isRunning = true;
+
+        var i = 0;
+        var coordinates = SpiralOutGenerator.lastPosition;
+        while (SpiralOutGenerator.pixelsRemaining() === true) {
+            var colour = SpiralOutGenerator.generate(coordinates.x, coordinates.y);
+            SpiralOutGenerator.record(coordinates.x, coordinates.y, colour);
+            coordinates = SpiralOutGenerator.move();
+            i++;
+        }
+
+        this._isRunning = false;
+    },
+
     generate: function(i, j) {
+        var pixelStart = Date.now();
 
         // surroundingSquares is an n x n grid (min n = 2, max n = 3)
         var surroundingSquares = this._getSurroundingColours(i, j);
@@ -110,9 +158,7 @@ var SpiralOutGenerator = {
 
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
-        var possible = potential.hash();
-
-        if (this.usedColours.indexOf(possible) >= 0) {
+        if (this.colourArray[redAvg][greenAvg][blueAvg] === false) {
             // Already used this colour
             var found = false;
             var radiusStep = 1;
@@ -150,15 +196,12 @@ var SpiralOutGenerator = {
                     for (var j = minGreen; j <= maxGreen; j++) {
                         for (var k = minBlue; k <= maxBlue; k++) {
                             var distance = this.distance(i, j, k, redAvg, greenAvg, blueAvg);
-                            if (distance <= maxDist && distance > minDist) {
+                            if (distance <= maxDist && distance > minDist && this.colourArray[i][j][k] === true) {
                                 potential.r = i;
                                 potential.g = j;
                                 potential.b = k;
-                                possible = potential.hash();
-                                if (this.usedColours.indexOf(possible) < 0) {
-                                    found = true;
-                                    break;
-                                }
+                                found = true;
+                                break;
                             }
                         }
                         if (found) {
@@ -175,6 +218,7 @@ var SpiralOutGenerator = {
                 }
             }
         }
+        this.heatmapData.push(Date.now() - pixelStart);
 
         return potential;
     },
@@ -188,8 +232,14 @@ var SpiralOutGenerator = {
     },
 
     record: function(i, j, colour) {
-        this.usedColours.push(colour.hash());
+        this.colourCount++;
+        this.colourArray[colour.r][colour.g][colour.b] = false;
         this.memoryCanvas[i][j] = colour;
+        var basePixel = (j * this.height + i) * 4;
+        this.imageData.data[basePixel] = colour.r;
+        this.imageData.data[basePixel + 1] = colour.g;
+        this.imageData.data[basePixel + 2] = colour.b;
+        this.imageData.data[basePixel + 3] = 255;
     },
 
     move: function() {
@@ -338,34 +388,47 @@ var SpiralOutGenerator = {
 
     _check: function(x, y) {
         return (this.memoryCanvas[x][y] === null);
+    },
+    isRunning: function() {
+        return this._isRunning;
+    },
+    getData: function() {
+        return this.imageData;
+    },
+    getHeatmapData: function() {
+        return this.heatmapData;
     }
 }
 
 self.addEventListener('message', function(e) {
     var data = e.data;
-    var canvas = data.canvas;
-    var width = canvas.width;
-    var height = canvas.height;
-    var defaultValue = data.default;
-    SpiralOutGenerator.init(canvas, defaultValue);
-
-    var i = 0;
-    var coordinates = SpiralOutGenerator.lastPosition;
-    while (SpiralOutGenerator.pixelsRemaining() === true) {
-        var colour = SpiralOutGenerator.generate(coordinates.x, coordinates.y);
-
-        self.postMessage({
-            'running': true,
-            'colour':colour.toSimpleObject(),
-            'coordinates':coordinates,
-            'rowComplete':(i % height === 0)
-        });
-        SpiralOutGenerator.record(coordinates.x, coordinates.y, colour);
-        coordinates = SpiralOutGenerator.move();
-        i++;
+    switch(data.cmd) {
+        case 'start':
+            var canvas = data.canvas;
+            var defaultValue = data.default;
+            SpiralOutGenerator.init(canvas, defaultValue);
+            SpiralOutGenerator.createImage();
+            break;
+        case 'getData':
+            self.postMessage({
+                'running':SpiralOutGenerator.isRunning(),
+                'imageData':SpiralOutGenerator.getData()
+            });
+            break;
+        case 'abilities':
+            self.postMessage({
+                'abilities':{
+                    'heatmap':true
+                }
+            });
+            break;
+        case 'heatmap':
+            self.postMessage({
+                'heatmap':SpiralOutGenerator.getHeatmapData()
+            });
+            break;
+        case 'close':
+            self.close();
+            break;
     }
-
-    // Tidy up the worker thread
-    self.postMessage({'running':false});
-    self.close();
 }, false);

@@ -45,6 +45,13 @@ $(function() {
         testHeatmapCanvas:null,
         testHeatmapContext:null,
 
+        started: null,
+        canDrawHeatmap:false,
+        offscreenHeatmap:null,
+        offscreenHeatmapContext:null,
+        offscreenHeatMapImageData:null,
+        offscreenHeatMapSmallImageData:null,
+
         // Whether a worker is currently running ( stopping the 'begin' button
         // being clicked multiple times)
         running:false,
@@ -66,6 +73,8 @@ $(function() {
         lasttime:null,
 
         currentRow:0,
+
+        stopWorker:false,
 
         // Populated during drawing, but used at the end to show a histogram
         // of time taken per pixel.
@@ -94,170 +103,157 @@ $(function() {
                 case "original":
                 case "ORIGINAL":
                     this.worker = new Worker('original-generator.js');
-                    this.worker.addEventListener(
-                        'message', $.proxy(this.draw, this), false
-                    );
                     break;
                 case "iterate":
                 case "ITERATE":
                     this.worker = new Worker('iterative-generator.js');
-                    this.worker.addEventListener(
-                        'message', $.proxy(this.draw, this), false
-                    );
                     break;
                 case "path":
                 case "PATH":
                     this.worker = new Worker('path-generator.js');
-                    this.worker.addEventListener(
-                        'message', $.proxy(this.draw, this), false
-                    );
                     break;
                 case "spiral":
                 case "SPIRAL":
                     this.worker = new Worker('spiral-generator.js');
-                    this.worker.addEventListener(
-                        'message', $.proxy(this.draw, this), false
-                    );
                     break;
                 case "spiralout":
                 case "SPIRALOUT":
                     this.worker = new Worker('spiral-out-generator.js');
-                    this.worker.addEventListener(
-                        'message', $.proxy(this.draw, this), false
-                    );
                     break;
             }
+            this.worker.addEventListener(
+                'message', $.proxy(this.responseFromWorker, this), false
+            );
+
+            this.worker.postMessage({
+                'cmd':'abilities'
+            });
 
             if (this.testHeatmapWorker !== null) {
                 this.testHeatmapWorker.terminate();
             }
-            if (this.canDrawHeatmap) {
-                this.heatmapWorker = new Worker('heatmap.js');
-                this.heatmapWorker.addEventListener(
-                    'message', $.proxy(this.drawHeatmap, this), false
-                );
+        },
+
+        setAbilities: function(abilities) {
+            if (typeof(abilities.heatmap) != 'undefined' && abilities.heatmap == true) {
+                $(document).find("#createheatmap").show();
+                $(document).find("#heatmaparea").show();
+            } else {
+                $(document).find("#createheatmap").hide();
+                $(document).find("#heatmaparea").show();
             }
         },
 
-        draw: function(e) {
-            if (e.data.running == true) {
-                var colour = e.data.colour;
-                var coords = e.data.coordinates;
-                var now = Date.now();
+        displayHeatmap: function(heatmapData) {
+            this.heatmapWorker.postMessage({
+                'complete':true,
+                'timings':heatmapData,
+                'width':this.canvas.width,
+                'height':this.canvas.height
+            });
+        },
 
-                if (e.data.rowComplete == true) {
-                    this.plot(this.currentRow, (now - this.lastrowtime));
-                    this.lastrowtime = now;
-                    this.currentRow++;
-                }
-
-                this.px[0] = colour.r;
-                this.px[1] = colour.g;
-                this.px[2] = colour.b
-                this.px[3] = 255;
-                this.context.putImageData(this.smallImageData, coords.x, coords.y);
-
-                if (this.canDrawHeatmap) {
-                    this.heatmapWorker.postMessage({
-                        'time':(now - this.lasttime),
-                        'coords':{
-                            'x':coords.x,
-                            'y':coords.y
-                        }
-                    });
-                }
-                this.frequency.increment(now - this.lasttime);
-
-                this.lasttime = now;
-            } else {
-                $.plot(
-                    $('#timefrequency'),
-                    [{
-                        'data':this.frequency.toArray(),
-                        'bars':{'show':true}
-                    }]
-                );
-                console.log("Finished at: " + Date.now());
-                this.running = false;
-                console.log("Took: " + (Date.now() - this.started));
+        responseFromWorker: function(e) {
+            if (typeof(e.data.abilities) != 'undefined') {
+                this.setAbilities(e.data.abilities);
+                return;
             }
+            if (typeof(e.data.heatmap) != 'undefined') {
+                this.displayHeatmap(e.data.heatmap);
+                return;
+            }
+
+            if (typeof(e.data.imageData) != 'undefined') {
+                this.context.putImageData(e.data.imageData, 0, 0);
+            }
+            if (e.data.running === false) {
+                this.stopWorker = true;
+            }
+            this.copyFromMemoryToPage();
+        },
+
+        copyFromMemoryToPage: function() {
+            requestAnimationFrame(
+                $.proxy(function() {
+                    this.worker.postMessage({
+                        'cmd':'getData'
+                    });
+                    if (this.stopWorker == true) {
+                        if (this.canDrawHeatmap) {
+                            this.worker.postMessage({
+                                'cmd':'heatmap'
+                            });
+                        }
+                        this.worker.postMessage({
+                            'cmd':'close'
+                        });
+                        this.running = false;
+                        var x = Date.now();
+                        console.log("Finished at: " + (x) + " taking " + (x - this.started) + " seconds");
+                    }
+                }, this)
+            );
         },
 
         drawHeatmap: function(e) {
-            var colour = e.data.colour;
-            var coords = e.data.coordinates;
-            this.heatMapPx[0] = colour.r;
-            this.heatMapPx[1] = colour.g;
-            this.heatMapPx[2] = colour.b
-            this.heatMapPx[3] = 255;
-            this.heatmapContext.putImageData(this.heatMapSmallImageData, coords.x, coords.y);
-        },
-
-        plot: function(x, value) {
-            this.chartData.push([x, value]);
-            $.plot($("#flotchart"), [this.chartData]);
-        },
-
-        random: function() {
-            var imData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-            var data = imData.data;
-            for (var i = 0; i < data.length; i++) {
-                data[i] = parseInt(Math.random() * 255);
-            }
-            this.context.putImageData(imData, 0, 0);
+            var colours = new ImageData(e.data.timings, this.canvas.width, this.canvas.height);
+            this.heatmapContext.putImageData(colours, 0, 0);
         },
 
         init: function() {
-            // Where the colours go
+            // The canvas the user can see
             this.canvas = $(document).find("#area")[0];
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-            this.smallImageData = this.context.createImageData(1, 1);
-            this.px = this.smallImageData.data;
 
             this.heatmap = $(document).find("#heatmap")[0];
 
             // Area for example of colours used in the heatmap
             this.heatmapexample = $(document).find("#heatmapexample")[0];
             this.heatmapexampleContext = this.heatmapexample.getContext('2d');
+
+            this.setMethod($(document).find("#method option:selected").val());
         },
 
-        started: null,
-        canDrawHeatmap:false,
         begin: function() {
             if (this.running === true) {
                 return;
             }
-
-            $.plot($("#flotchart"), [this.chartData]);
+            this.running = true;
+            this.stopWorker = false;
 
             this.canDrawHeatmap = $(document).find("#createheatmap option:selected").val() === 'yes';
+
             // Main heatmap area
             if (this.canDrawHeatmap) {
                 this.heatmapContext = this.heatmap.getContext('2d');
-                this.heatMapImageData = this.heatmapContext.getImageData(0, 0, this.heatmap.width, this.heatmap.height);
-                this.heatMapSmallImageData = this.heatmapContext.createImageData(1, 1);
-                this.heatMapPx = this.heatMapSmallImageData.data;
-            }
 
-            var method = $(document).find("#method option:selected").val();
-            this.setMethod(method);
+                this.heatmapWorker = new Worker('heatmap.js');
+                this.heatmapWorker.addEventListener(
+                    'message', $.proxy(this.drawHeatmap, this), false
+                );
+            }
 
             this.lastrowtime = Date.now();
             this.lasttime = Date.now();
             console.log("Started at: " + this.lastrowtime);
 
+            this.setMethod($(document).find("#method option:selected").val());
+
             this.worker.postMessage({
+                'cmd':'start',
                 'canvas':{
                     width:this.canvas.width,
-                    height:this.canvas.height
+                    height:this.canvas.height,
+                    imageData:this.context.getImageData(0, 0, this.canvas.width, this.canvas.height)
                 },
                 'default':this.defaultValue
             });
-            this.running = true;
+            this.copyFromMemoryToPage();
             this.started = Date.now();
         },
 
+        // -------------------- TESTING HEATMAP CODE --------------------------------
         testHeatmap: function() {
             this.testHeatmapWorker = new Worker('heatmap.js');
             this.testHeatmapWorker.addEventListener(
@@ -278,6 +274,7 @@ $(function() {
             this.testHeatmapContext.fillRect(e.data.x * width/2, 0, width, height);
         },
 
+        // ----------------------- DOWNLOAD CANVAS TO PNG -------------------------------
         downloadCanvas: function(link) {
             var parts = this.canvas.toDataURL().match(/data:([^;]*)(;base64)?,([0-9A-Za-z+/]+)/);
             var binStr = atob(parts[3]);
@@ -291,7 +288,20 @@ $(function() {
             var URL = webkitURL.createObjectURL(blob);
             link.href = URL;
             link.download = this.canvas.width + "x" + this.canvas.height + "@" + Date.now() + ".png";
-        }
+        },
+
+        // ------------------------ FOR TESTING THE CANVAS WRITING CALL THIS DIRECTLY --------------------
+        random: function() {
+            var imData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            var data = imData.data;
+            for (var i = 0; i < data.length; i+=4) {
+                data[i] = parseInt(Math.random() * 255);
+                data[i + 1] = parseInt(Math.random() * 255);
+                data[i + 2] = parseInt(Math.random() * 255);
+                data[i + 3] = 255;
+            }
+            this.context.putImageData(imData, 0, 0);
+        },
     }
 
     $(document).find("#start").on('click', function() {
@@ -312,5 +322,10 @@ $(function() {
         $(window.Image.heatmap).attr({'width':val, 'height':val});
     });
 
+    $(document).find("#method").on('change', function() {
+        var method = $(document).find("#method option:selected").val();
+        window.Image.setMethod(method);
+    });
+    
     window.Image.init();
 });

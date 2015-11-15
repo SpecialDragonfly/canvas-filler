@@ -17,10 +17,8 @@
               font-size:14px;
             }
 
-            #flotchart {
-                width:500px;
-                height:500px;
-                border:1px solid black;
+            #heatmaparea {
+                display:none;
             }
 
             #timefrequency {
@@ -74,6 +72,7 @@
                 <option value="spiralout">Spiral Out</option>
             </select>
             <select id='size'>
+                <option value=4>4x4</option>
                 <option value=64 selected=selected>64x64</option>
                 <option value=128>128x128</option>
                 <option value=256>256x256</option>
@@ -81,6 +80,7 @@
                 <option value=768>768x768</option>
                 <option value=1024>1024x1024</option>
                 <option value=2048>2048x2048</option>
+                <option value=4096>4096x4096</option>
             </select>
             <a id='downloadimage'>Download Image</a>
             <select id='createheatmap'>
@@ -94,16 +94,10 @@
                 <h2>The generated image is here</h2>
                 <canvas id='area' width='64px' height='64px'></canvas>
             </section>
-            <section>
+            <section id='heatmaparea'>
                 <h2>An image showing the relative length of time it took to generate each pixel</h2>
                 <canvas id='heatmap' width='64' height='64'></canvas>
             </section>
-        </div>
-        <div>
-            <h2>Histogram of time taken per pixel</h2>
-            <div id='timefrequency'></div>
-            <h2>Time taken for one row in ms</h2>
-            <div id="flotchart"></div>
         </div>
     </body>
 </html>

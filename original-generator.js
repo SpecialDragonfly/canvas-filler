@@ -54,25 +54,25 @@ var OriginalGenerator = {
         }
     },
 
-    average: function(values) {
+    average: function(vals) {
         // Unrolled loop turned out to be the fastest way to sum an array.
         // https://jsperf.com/array-summing-loop-vs-eval/10
         var sum = 0;
-        var len = values.length;
+        var len = vals.length;
         var n = Math.floor(len / 8);
         for (var i = 0; i < n; ++i) {
             var base = i * 8;
-            sum += values[base];
-            sum += values[base + 1];
-            sum += values[base + 2];
-            sum += values[base + 3];
-            sum += values[base + 4];
-            sum += values[base + 5];
-            sum += values[base + 6];
-            sum += values[base + 7];
+            sum += vals[base];
+            sum += vals[base + 1];
+            sum += vals[base + 2];
+            sum += vals[base + 3];
+            sum += vals[base + 4];
+            sum += vals[base + 5];
+            sum += vals[base + 6];
+            sum += vals[base + 7];
         }
         for (var i = n*8; i < len; ++i) {
-            sum += values[i];
+            sum += vals[i];
         }
 
         return Math.ceil(sum / len);
@@ -137,62 +137,58 @@ var OriginalGenerator = {
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
         if (this.colourArray[redAvg][greenAvg][blueAvg] === false) {
-            // Already used this colour
             var found = false;
-            var radiusStep = 1;
-            var minDist = 1;
+            var shell = 1;
 
-            while (!found) {
-                // Red, Green and Blue all at maximum radius distance.
-                var maxDist = Math.sqrt(3 * (radiusStep * radiusStep));
-                var minRed = redAvg - radiusStep;
+            while (found === false) {
+                var minRed = potential.r - shell;
+                var maxRed = potential.r + shell;
+                var minGreen = potential.g - shell;
+                var maxGreen = potential.g + shell;
+                var minBlue = potential.b - shell;
+                var maxBlue = potential.b + shell;
                 if (minRed < 0) {
                     minRed = 0;
                 }
-                var minGreen = greenAvg - radiusStep;
-                if (minGreen < 0) {
-                    minGreen = 0;
-                }
-                var minBlue = blueAvg - radiusStep;
-                if (minBlue < 0) {
-                    minBlue = 0;
-                }
-                var maxRed = redAvg + radiusStep;
                 if (maxRed > 255) {
                     maxRed = 255;
                 }
-                var maxGreen = greenAvg + radiusStep;
-                if (maxGreen > 255) {
-                    maxGreen = 255;
+                if (minGreen < 0) {
+                    minGreen = 0;
                 }
-                var maxBlue = blueAvg + radiusStep;
+                if (maxGreen > 255) {
+                    maxGreen = 0;
+                }
+                if (minBlue < 0) {
+                    minBlue = 0;
+                }
                 if (maxBlue > 255) {
                     maxBlue = 255;
                 }
 
-                for (var i = minRed; i <= maxRed; i++) {
-                    for (var j = minGreen; j <= maxGreen; j++) {
-                        for (var k = minBlue; k <= maxBlue; k++) {
-                            var distance = this.distance(i, j, k, redAvg, greenAvg, blueAvg);
-                            if (distance <= maxDist && distance > minDist && this.colourArray[i][j][k] === true) {
-                                potential.r = i;
-                                potential.g = j;
-                                potential.b = k;
-                                found = true;
-                                break;
+                for (var r = minRed; r <= maxRed; r++) {
+                    for (var g = minGreen; g <= maxGreen; g++) {
+                        for (var b = minBlue; b <= maxBlue; b++) {
+                            if ((r < potential.r - shell + 1 || r > potential.r + shell - 1) || (g < potential.g - shell + 1 || g > potential.g + shell - 1) || (b < potential.b - shell + 1 || b > potential.b + shell - 1)) {
+                                if (this.colourArray[r][g][b] === true) {
+                                    potential.r = r;
+                                    potential.g = g;
+                                    potential.b = b;
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
-                        if (found) {
+                        if (found === true) {
                             break;
                         }
                     }
-                    if (found) {
+                    if (found === true) {
                         break;
                     }
                 }
                 if (found === false) {
-                    minDist = maxDist;
-                    radiusStep++;
+                    shell++;
                 }
             }
         }

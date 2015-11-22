@@ -169,7 +169,10 @@ var OriginalGenerator = {
                 for (var r = minRed; r <= maxRed; r++) {
                     for (var g = minGreen; g <= maxGreen; g++) {
                         for (var b = minBlue; b <= maxBlue; b++) {
-                            if ((r < potential.r - shell + 1 || r > potential.r + shell - 1) || (g < potential.g - shell + 1 || g > potential.g + shell - 1) || (b < potential.b - shell + 1 || b > potential.b + shell - 1)) {
+                            if ((r < potential.r - shell + 1 || r > potential.r + shell - 1) 
+                                || (g < potential.g - shell + 1 || g > potential.g + shell - 1) 
+                                || (b < potential.b - shell + 1 || b > potential.b + shell - 1)
+                            ) {
                                 if (this.colourArray[r][g][b] === true) {
                                     potential.r = r;
                                     potential.g = g;

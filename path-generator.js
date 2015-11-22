@@ -142,65 +142,61 @@ var PathGenerator = {
         var potential = new Point(redAvg, greenAvg, blueAvg, 1);
 
         if (this.colourArray[redAvg][greenAvg][blueAvg] === false) {
-            // Already used this colour
             var found = false;
-            var radiusStep = 1;
-            var minDist = 1;
+            var shell = 1;
 
             while (found === false) {
-                // Red, Green and Blue all at maximum radius distance.
-                // sqrt(x^2 + y^2 + z^2) where x = y = z
-                var maxDist = Math.sqrt(3 * (radiusStep * radiusStep));
-                var minRed = redAvg - radiusStep;
+                var minRed = potential.r - shell;
+                var maxRed = potential.r + shell;
+                var minGreen = potential.g - shell;
+                var maxGreen = potential.g + shell;
+                var minBlue = potential.b - shell;
+                var maxBlue = potential.b + shell;
                 if (minRed < 0) {
                     minRed = 0;
                 }
-                var minGreen = greenAvg - radiusStep;
-                if (minGreen < 0) {
-                    minGreen = 0;
-                }
-                var minBlue = blueAvg - radiusStep;
-                if (minBlue < 0) {
-                    minBlue = 0;
-                }
-                var maxRed = redAvg + radiusStep;
                 if (maxRed > 255) {
                     maxRed = 255;
                 }
-                var maxGreen = greenAvg + radiusStep;
-                if (maxGreen > 255) {
-                    maxGreen = 255;
+                if (minGreen < 0) {
+                    minGreen = 0;
                 }
-                var maxBlue = blueAvg + radiusStep;
+                if (maxGreen > 255) {
+                    maxGreen = 0;
+                }
+                if (minBlue < 0) {
+                    minBlue = 0;
+                }
                 if (maxBlue > 255) {
                     maxBlue = 255;
                 }
 
-                for (var i = minRed; i <= maxRed; i++) {
-                    for (var j = minGreen; j <= maxGreen; j++) {
-                        for (var k = minBlue; k <= maxBlue; k++) {
-                            var distance = this.distance(
-                                i, j, k, redAvg, greenAvg, blueAvg
-                            );
-                            if (distance <= maxDist && distance > minDist && this.colourArray[i][j][k] === true) {
-                                potential.r = i;
-                                potential.g = j;
-                                potential.b = k;
-                                found = true;
-                                break;
+                for (var r = minRed; r <= maxRed; r++) {
+                    for (var g = minGreen; g <= maxGreen; g++) {
+                        for (var b = minBlue; b <= maxBlue; b++) {
+                            if ((r < potential.r - shell + 1 || r > potential.r + shell - 1) 
+                                || (g < potential.g - shell + 1 || g > potential.g + shell - 1) 
+                                || (b < potential.b - shell + 1 || b > potential.b + shell - 1)
+                            ) {
+                                if (this.colourArray[r][g][b] === true) {
+                                    potential.r = r;
+                                    potential.g = g;
+                                    potential.b = b;
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
-                        if (found) {
+                        if (found === true) {
                             break;
                         }
                     }
-                    if (found) {
+                    if (found === true) {
                         break;
                     }
                 }
                 if (found === false) {
-                    minDist = maxDist;
-                    radiusStep++;
+                    shell++;
                 }
             }
         }

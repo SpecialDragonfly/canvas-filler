@@ -1,0 +1,22 @@
+{
+  "name": "canvas-filler",
+  "version": "1.0.0",
+  "description": "canvas-filler =============",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SpecialDragonfly/canvas-filler.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SpecialDragonfly/canvas-filler/issues"
+  },
+  "homepage": "https://github.com/SpecialDragonfly/canvas-filler#readme",
+  "dependencies": {
+    "express": "^4.16.4"
+  }
+}

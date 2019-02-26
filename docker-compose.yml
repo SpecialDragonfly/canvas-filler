@@ -1,0 +1,12 @@
+version: '3.5'
+
+services:
+    canvas:
+        build:
+            context: ./
+            cache_from:
+                - canvas_filler
+        ports:
+            - "3000:3000"
+        volumes:
+            - "./:/var/www/html"

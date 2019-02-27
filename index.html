@@ -48,21 +48,15 @@
                 <option value="spiral">Spiral In</option>
                 <option value="spiralout">Spiral Out</option>
             </select>
-            <select id='size'>
-                <option value=4>4x4</option>
-                <option value=64 selected=selected>64x64</option>
-                <option value=128>128x128</option>
-                <option value=256>256x256</option>
-                <option value=512>512x512</option>
-                <option value=768>768x768</option>
-                <option value=1024>1024x1024</option>
-                <option value=2048>2048x2048</option>
-                <option value=4096>4096x4096</option>
-            </select>
+						<label for="width">Width</label>
+						<input type="text" value="64" id="width" />
+						<label for="height">Height</label>
+						<input type="text" value="64" id="height" />
             <a id='downloadimage'>Download Image</a>
         </div>
 				<div class="pipelineStats">
 					<div id="quantity"></div>
+					<div id="total-pixels"></div>
 				</div>
         <div class='main'>
             <section>

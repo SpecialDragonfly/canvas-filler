@@ -226,7 +226,7 @@ var OriginalGenerator = {
                     'test':{
                         'x':i,
                         'y':j,
-                        'colour':{r: colour.r, g: colour.g, b: colour.b, a: 1}
+												'rgba': 'rgba('+colour.r+','+colour.g+','+colour.b+',1)'
                     }
                 })
             }

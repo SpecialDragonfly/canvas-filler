@@ -1,53 +1,35 @@
 "use strict";
 
-const ImageUtils = {
-    hexToRgb: function(hex) {
-        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : null;
-    },
-    componentToHex: function(c) {
-        var hex = c.toString(16);
-        return hex.length == 1 ? "0" + hex : hex;
-    },
-    rgbToHex: function(r, g, b) {
-        return "#" + this.componentToHex(r) + this.componentToHex(g) + this.componentToHex(b);
-    }
-}
-
 $(function() {
     window.workers = {
-				"_cached": {
-				},
-				get: function(name) {
-					if (this._cached[name] !== undefined) {
-						return this._cached[name]
-					}
-					let w = window.workers[name]()
-					w.addEventListener(
+        "_cached": {
+        },
+        get: function(name) {
+          if (this._cached[name] !== undefined) {
+            return this._cached[name]
+          }
+          let w = window.workers[name]()
+          w.addEventListener(
               'message', $.proxy(window.Image.responseFromWorker, window.Image), false
           );
-					this._cached[name] = w
-					return w
-				},
+          this._cached[name] = w
+          return w
+        },
         "original": function() {
           return new Worker('workers/original-generator.js')
         },
         "iterate": function() {
-					return new Worker('workers/iterative-generator.js')
-				},
+          return new Worker('workers/iterative-generator.js')
+        },
         "path": function() {
-					return new Worker('workers/path-generator.js')
-				},
+          return new Worker('workers/path-generator.js')
+        },
         "spiral": function() {
-					return new Worker('workers/spiral-generator.js')
-				},
+          return new Worker('workers/spiral-generator.js')
+        },
         "spiralout": function() {
-					return new Worker('workers/spiral-out-generator.js')
-				}
+          return new Worker('workers/spiral-out-generator.js')
+        }
     },
 
     window.Image = {
@@ -64,8 +46,7 @@ $(function() {
         defaultValue: {
             'r':0,
             'g':0,
-            'b':0,
-            'a':1 // 0: fully transparent -> 1: not transparent
+            'b':0
         },
 
         // The currently running worker
@@ -107,54 +88,66 @@ $(function() {
         },
 
         animate: function() {
-					this.spliceAmount = 1024; //this.canvas.height
+          this.spliceAmount = 1024; //this.canvas.height
           let values = this.drawingQueue.splice(0, this.spliceAmount)
-					while (values.length > 0) {
-						let data = values.pop()
-						this.draw(data.x, data.y, data.colour)
-					}
+          while (values.length > 0) {
+            let data = values.pop()
+            this.draw(data.x, data.y, data.rgba)
+          }
 
           requestAnimationFrame(this.animate.bind(this))
         },
 
-				writePipelineLength: function(val) {
-					this.pipelineStats.html("Length: " + val)
-				},
+        writePipelineLength: function(val) {
+          this.pipelineStats.html("Length: " + val)
+        },
 
         draw: function(x, y, point) {
-          this.context.fillStyle = "rgba("+point.r+","+point.g+","+point.b+","+(point.a)+")";
+          this.context.fillStyle = point;
           this.context.fillRect( x, y, 1, 1 );
         },
 
         responseFromWorker: function(e) {
-					if (e.data.type === 'status') {
-						this.running = e.data.running
-					} else if (e.data.type === 'count') {
-						this.writePipelineLength(e.data.count)
-					} else if (e.data.type === 'point') {
-						this.drawingQueue.push(e.data.test);
-					}
+          if (e.data.type === 'status') {
+            this.running = e.data.running
+          } else if (e.data.type === 'count') {
+            this.writePipelineLength(e.data.count)
+          } else if (e.data.type === 'point') {
+            this.drawingQueue.push(e.data.test);
+          }
         },
 
         init: function() {
             // The canvas the user can see
             this.canvas = $(document).find("#area")[0];
             this.context = this.canvas.getContext('2d');
-						this.pipelineStats = $(document).find(".pipelineStats").find("#quantity")
+            this.pipelineStats = $(document).find(".pipelineStats").find("#quantity")
         },
 
         begin: function() {
             if (this.running === true) {
                 return;
             }
+
+            var width = $(document).find("#width").val();
+            var height = $(document).find("#height").val();
+            $(window.Image.canvas).attr({'width':width, 'height':height})
+            $(document).find("#total-pixels").html("Total pixels: " + (width * height))
+            if (width * height > (4096 * 4096)) {
+              return
+            }
+
             this.drawingQueue = []
             this.running = true;
 
             console.log("Started at: " + (Date.now()));
 
-            setTimeout($.proxy(function() { this._initAnimation() }, this),
-							1000
-						)
+            setTimeout(
+              $.proxy(function() {
+                this._initAnimation()
+              }, this),
+              1000
+            )
 
             this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.worker.postMessage({
@@ -214,12 +207,6 @@ $(function() {
     $("#downloadimage")[0].addEventListener('click', function(){
         window.Image.downloadCanvas(this);
     }, false);
-
-    $(document).find("#size").on('change', function() {
-        var val = $(this).val();
-        $(window.Image.canvas).attr({'width':val, 'height':val});
-        $(window.Image.heatmap).attr({'width':val, 'height':val});
-    });
 
     window.Image.init();
 });

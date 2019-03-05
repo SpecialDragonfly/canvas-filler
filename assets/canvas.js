@@ -29,7 +29,10 @@ $(function() {
         },
         "spiralout": function() {
           return new Worker('workers/spiral-out-generator.js')
-        }
+        },
+				"diagonal": function() {
+					return new Worker('workers/diagonal-generator.js')
+				}
     },
 
     window.Image = {
@@ -78,22 +81,20 @@ $(function() {
                 case "SPIRALOUT":
                     this.worker = window.workers.get('spiralout');
                     break;
+								case "diagonal":
+								case "DIAGONAL":
+										this.worker = window.workers.get('diagonal');
+										break;
             }
 
         },
 
         _initAnimation: function() {
-          console.log("Animation started. Splice amount: " + this.spliceAmount);
           this.animate()
         },
 
         animate: function() {
-          this.spliceAmount = 1024; //this.canvas.height
-          let values = this.drawingQueue.splice(0, this.spliceAmount)
-          while (values.length > 0) {
-            let data = values.pop()
-            this.draw(data.x, data.y, data.rgba)
-          }
+					this.writePipelineLength(this.pixelCount)
 
           requestAnimationFrame(this.animate.bind(this))
         },
@@ -102,28 +103,33 @@ $(function() {
           this.pipelineStats.html("Length: " + val)
         },
 
-        draw: function(x, y, point) {
-          this.context.fillStyle = point;
-          this.context.fillRect( x, y, 1, 1 );
-        },
-
+				pixelCount: 0,
         responseFromWorker: function(e) {
           if (e.data.type === 'status') {
             this.running = e.data.running
+						if (!this.running) {
+							console.log("Ended at: " + (Date.now()));
+							let pixels = this.canvas.width * this.canvas.height;
+							let duration = (Date.now() - this.started) / 1000;
+							console.log(pixels + " pixels took " + duration + " seconds (" + (pixels/duration) + " px/s)")
+						}
+					} else if (e.data.type === 'final') {
+						this.context.putImageData(e.data.data, 0, 0);
           } else if (e.data.type === 'count') {
-            this.writePipelineLength(e.data.count)
-          } else if (e.data.type === 'point') {
-            this.drawingQueue.push(e.data.test);
-          }
+						this.pixelCount = e.data.count;
+          } else if (e.data.type === 'debug') {
+						console.log(e.data.msg)
+					}
         },
 
         init: function() {
             // The canvas the user can see
             this.canvas = $(document).find("#area")[0];
-            this.context = this.canvas.getContext('2d');
+            this.context = this.canvas.getContext('2d', { alpha: false });
             this.pipelineStats = $(document).find(".pipelineStats").find("#quantity")
         },
 
+				started:0,
         begin: function() {
             if (this.running === true) {
                 return;
@@ -132,7 +138,9 @@ $(function() {
             var width = $(document).find("#width").val();
             var height = $(document).find("#height").val();
             $(window.Image.canvas).attr({'width':width, 'height':height})
-            $(document).find("#total-pixels").html("Total pixels: " + (width * height))
+            $(document).find("#total-pixels").html(
+							"Total pixels: " + (width * height)
+						)
             if (width * height > (4096 * 4096)) {
               return
             }
@@ -140,7 +148,7 @@ $(function() {
             this.drawingQueue = []
             this.running = true;
 
-            console.log("Started at: " + (Date.now()));
+						this.started = Date.now();
 
             setTimeout(
               $.proxy(function() {
@@ -156,6 +164,7 @@ $(function() {
                     width:this.canvas.width,
                     height:this.canvas.height
                 },
+								'imageData':this.context.getImageData(0, 0, this.canvas.width, this.canvas.height),
                 'default':this.defaultValue
             });
         },

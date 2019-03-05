@@ -196,7 +196,7 @@ const MemoryCanvas = {
 }
 
 // Singleton generator
-var OriginalGenerator = {
+var DiagonalGenerator = {
     memoryCanvas: [],
     colourArray:[],
     defaultValue:{'r':0,'g':0,'b':0, 'a': 1},
@@ -219,33 +219,50 @@ var OriginalGenerator = {
 
     createImage: function(buffer) {
 				let within90Percent = false
-        for (var x = 0; x < this.width; x++) {
-            for (var y = 0; y < this.height; y++) {
-								var idx = 4 * ((y * this.width) + x);
-                var colour = this.generate(x, y);
-								buffer[idx + 0] = colour.r
-								buffer[idx + 1] = colour.g
-								buffer[idx + 2] = colour.b
-								buffer[idx + 3] = 255
-								if (within90Percent) {
-									self.postMessage({
-										'type': 'count',
-										'running': this._isRunning,
-										'count': (x * this.height) + y
-									})
-								}
-            }
-						self.postMessage({
-							'type': 'count',
-							'running': this._isRunning,
-							'count': (x * this.height)
-						})
-						if (!within90Percent) {
-							if (this.width * 0.9 < x) {
-								within90Percent = true
-							}
+
+				let count = 0
+				let y = 0
+				for (var x = 0; x < this.width; x++) { // Go along the side
+					for (var altX = x; altX >= 0; altX--, y++) {
+						if (y >= this.height) {
+							break;
 						}
-        }
+						var idx = 4 * ((y * this.width) + altX);
+						var colour = this.generate(altX, y)
+						buffer[idx + 0] = colour.r
+						buffer[idx + 1] = colour.g
+						buffer[idx + 2] = colour.b
+						buffer[idx + 3] = 255
+						count++;
+					}
+					y = 0
+					self.postMessage({
+						'type': 'count',
+						'running': this._isRunning,
+						'count': count
+					})
+				}
+				x = this.width - 1
+				for (y = 1; y < this.height; y++) { // Go down the side
+					for (var altY = y; altY < this.height; x--, altY++) {
+						if (x < 0) {
+							break;
+						}
+						var idx = 4 * ((altY * this.width) + x);
+						var colour = this.generate(x, altY)
+						buffer[idx + 0] = colour.r
+						buffer[idx + 1] = colour.g
+						buffer[idx + 2] = colour.b
+						buffer[idx + 3] = 255
+						count++
+					}
+					x = this.width - 1
+					self.postMessage({
+						'type': 'count',
+						'running': this._isRunning,
+						'count': count
+					})
+				}
     },
 
     isRunning: function() {
@@ -261,8 +278,8 @@ self.addEventListener('message', function(e) {
             var defaultValue = data.default;
 						var context = data.context;
 						var imageData = data.imageData;
-            OriginalGenerator.init(canvas);
-            OriginalGenerator.createImage(imageData.data);
+            DiagonalGenerator.init(canvas);
+            DiagonalGenerator.createImage(imageData.data);
 
 						self.postMessage({
 							'type':'final',

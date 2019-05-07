@@ -1,52 +1,8 @@
 "use strict";
-function Point(r, g, b, a) {
-    this.r = r;
-    this.g = g;
-    this.b = b;
-    this.a = a;
-
-    this.hash = function() {
-        return btoa('r' + this.r + 'g' + this.g + 'b' + this.b);
-    };
-    this.toSimpleObject = function() {
-        return {
-            'r':this.r,
-            'g':this.g,
-            'b':this.b,
-            'a':this.a
-        };
-    };
-}
-
-// Singleton generator
-var SpiralOutGenerator = {
-    memoryCanvas: [],
-    colourArray:[],
-    width:0,
-    height:0,
-    defaultValue:{'r':0,'g':0,'b':0},
-    lastPosition:null,
-    lastDirection:'',
-    _isRunning:false,
-    imageData:null,
-    heatmapData:[],
-    colourCount:0,
-
-    init: function(canvas, defaultValue) {
-        if (typeof(defaultValue) != 'undefined') {
-            this.defaultValue = defaultValue;
-        }
-        this.width = canvas.width;
-        this.height = canvas.height;
-        this.imageData = canvas.imageData;
-
-        for (var i = 0; i < this.width; i++) {
-            var row = [];
-            for (var j = 0; j < this.height; j++) {
-                row.push(null);
-            }
-            this.memoryCanvas.push(row);
-        }
+const ColourArray = {
+    colours: [],
+    init: function() {
+        let colourArray = []
         for (var r = 0; r < 256; r++) {
             var row = [];
             for (var g = 0; g < 256; g++) {
@@ -56,70 +12,284 @@ var SpiralOutGenerator = {
                 }
                 row.push(column);
             }
-            this.colourArray.push(row);
+            colourArray.push(row);
+        }
+        this.colours = colourArray
+        return this
+    },
+    isAvailable: function(r, g, b) {
+        return this.colours[r][g][b] === true;
+    },
+    _inArray: function(needle, haystack) {
+        var length = haystack.length;
+        for(var i = 0; i < length; i++) {
+            if(haystack[i] == needle) return true;
+        }
+        return false;
+    },
+    _addSolution: function(r, g, b) {
+        if (r < 0) {
+            r = 0;
+        }
+        if (g < 0) {
+            g = 0;
+        }
+        if (b < 0) {
+            b = 0;
+        }
+        if (r > 255) {
+            r = 255;
+        }
+        if (g > 255) {
+            g = 255
+        }
+        if (b > 255) {
+            b = 255
+        }
+        if (!this.isAvailable(r, g, b)) {
+            return
         }
 
-        var x = Math.floor(this.width / 2);
-        var y = Math.floor(this.height / 2);
-        this.lastPosition = {'x':x, 'y':y};
-        this.lastDirection = 'n';
+        let hash = r + "," + g + "," + b
+        if (!this._inArray(hash, this.solutionHash)) {
+            this.solutionHash.push(hash)
+            this.solutions.push({r: r, g: g, b: b, a: 1})
+        }
     },
+    solutionHash: [],
+    solutions: [],
+    getColour: function(startR, startG, startB) {
+        let potential = {
+            r:startR,
+            g:startG,
+            b:startB,
+            a:1
+        }
+        this.solutionHash = []
+        this.solutions = []        
+        let shell = 0
+        if (!this.isAvailable(startR, startG, startB)) {
+            while (this.solutionHash.length === 0) {
+                shell++;
+                for (var A = 0; A <= shell; ++A) {
+                    for (var B = 0; B <= shell - A; ++B) {
+                        // +r +g +b
+                        this._addSolution(startR + A, startG + B, startB + (shell - A - B))
+                        // +r +g -b
+                        this._addSolution(startR + A, startG + B, startB - (shell - A - B))
+                        // +r -g +b
+                        this._addSolution(startR + A, startG - B, startB + (shell - A - B))
+                        // -r +g +b
+                        this._addSolution(startR - A, startG + B, startB + (shell - A - B))
+                        // -r +g -b
+                        this._addSolution(startR - A, startG + B, startB - (shell - A - B))
+                        // +r -g -b
+                        this._addSolution(startR + A, startG - B, startB - (shell - A - B))
+                        // -r -g +b
+                        this._addSolution(startR - A, startG - B, startB + (shell - A - B))
+                        /// -r -g -b
+                        this._addSolution(startR - A, startG - B, startB - (shell - A - B))
+                    }
+                }
+                if (shell > (255 + 255 + 255)) { // 0,0,0 -> 255,255,255 => distance of 255+255+255
+                    console.log("Maximum sized shell reached");
+                    console.log("Starting at " + startR + ", " + startG + ", " + startB);
+                    for (var rcheck = 0; rcheck < 255; rcheck++) {
+                        for (var gcheck = 0; gcheck < 255; gcheck++) {
+                            for (var bcheck = 0; bcheck < 255; bcheck++) {
+                                if (this.isAvailable(rcheck, gcheck, bcheck)) {
+                                    console.log("But " + rcheck + ", " + gcheck + ", " + bcheck + " was available")
+                                    return
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
 
-    pixelsRemaining: function() {
-        return ((this.width * this.height) - this.colourCount) > 0;
+            // if we're here then we have possible solutions.
+            potential = this.solutions[0];
+            if (shell > 25) {
+                self.postMessage({
+                    'type': 'shell-count',
+                    'count': shell
+                })                
+            }
+        }
+        this.colours[potential.r][potential.g][potential.b] = null
+
+        return potential
+    }    
+}
+
+const MemoryCanvas = {
+    canvas: [],
+    colours: null,
+    width:0,
+    height:0,
+    init: function(colourArray, width, height) {
+        this.width = width
+        this.height = height
+        let memory = []
+        for (var i = 0; i < width; i++) {
+            var row = [];
+            for (var j = 0; j < height; j++) {
+                row.push(null);
+            }
+            memory.push(row);
+        }
+        this.canvas = memory
+        this.colours = colourArray
+
+        return this
     },
+    available: function(x, y) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+            return false
+        }
 
-    average: function(values) {
+        return this.canvas[x][y] === null
+    },
+    average: function(vals) {
         // Unrolled loop turned out to be the fastest way to sum an array.
         // https://jsperf.com/array-summing-loop-vs-eval/10
         var sum = 0;
-        var len = values.length;
+        var len = vals.length;
         var n = Math.floor(len / 8);
         for (var i = 0; i < n; ++i) {
-            var base = i * 8;
-            sum += values[base];
-            sum += values[base + 1];
-            sum += values[base + 2];
-            sum += values[base + 3];
-            sum += values[base + 4];
-            sum += values[base + 5];
-            sum += values[base + 6];
-            sum += values[base + 7];
+                var base = i * 8;
+                sum += vals[base];
+                sum += vals[base + 1];
+                sum += vals[base + 2];
+                sum += vals[base + 3];
+                sum += vals[base + 4];
+                sum += vals[base + 5];
+                sum += vals[base + 6];
+                sum += vals[base + 7];
         }
         for (var i = n*8; i < len; ++i) {
-            sum += values[i];
+                sum += vals[i];
         }
 
         return Math.ceil(sum / len);
     },
-
     _getSurroundingColours: function(i, j) {
         var grid = [];
 
-        var previousI = i - 1 < 0 ? 0 : i - 1;
-        var previousJ = j - 1 < 0 ? 0 : j - 1;
-        var maxI = i + 1 >= this.width ? this.width -1 : i + 1;
-        var maxJ = j + 1 >= this.height ? this.height -1 : j + 1;
-        for (var x = previousI; x <= maxI; x++) {
-            for (var y = previousJ; y <= maxJ; y++) {
-                if (this.memoryCanvas[x][y] !== null) {
-                    grid.push(this.memoryCanvas[x][y]);
+        for (var x = i - 1; x <= i + 1; x++) {
+            if (x < 0) {
+                continue;
+            }
+            if (x >= this.width) {
+                continue;
+            }
+            for (var y = j - 1; y <= j + 1; y++) {
+                if (y < 0) {
+                    continue;
+                }
+                if (y >= this.height) {
+                    continue;
+                }
+                if (this.canvas[x][y] !== null && this.canvas[x][y] !== undefined) {
+                    grid.push(this.canvas[x][y]);
                 }
             }
         }
 
         return grid;
     },
-
-    colourValue: function(colours) {
-        var x = 0;
-        if (colours.length > 0) {
-            x = this.average(colours);
+    averageOrRandom: function(values) {
+        let x = 0;
+        if (values.length > 0) {
+            x = this.average(values)
         } else {
-            x = Math.random() * 256;
+            x = Math.random() * 256
         }
+        return Math.floor(x)
+    },
+    getColour: function(i, j) {
+        let surroundingColours = this._getSurroundingColours(i, j)
+        let reds = []
+        let greens = []
+        let blues = []
+        for (var idx = 0; idx < surroundingColours.length; idx++) {
+            var colour = surroundingColours[idx];
+            reds.push(colour.r);
+            greens.push(colour.g);
+            blues.push(colour.b);
+        }
+        let redAvg = this.averageOrRandom(reds)
+        let greenAvg = this.averageOrRandom(greens)
+        let blueAvg = this.averageOrRandom(blues)
 
-        return Math.floor(x);
+        let potential = this.colours.getColour(redAvg, greenAvg, blueAvg)
+        this.canvas[i][j] = potential
+
+        return potential
+    },
+    nextAvailableVertical: function(x, y, direction) {
+        switch (direction) {
+            case 'north':
+                for (var i = y; i >= 0; i--) {
+                    if (this.canvas[x][i] === null) {
+                        return {x:x, y: i}
+                    }
+                }
+                break;
+            case 'south':
+                for (var i = y; i < this.height; i++) {
+                    if (this.canvas[x][i] === null) {
+                        return {x:x, y: i}
+                    }
+                }
+                break;
+        }
+        return false;
+    },
+    nextAvailableHorizontal: function(x, y, direction) {
+        switch (direction) {
+            case 'east':
+                for (var i = x; i < this.width; i++) {
+                    if (this.canvas[i][y] === null) {
+                        return {x:i, y:y}
+                    }
+                }
+                break;
+            case 'west':
+                for (var i = x; i >= 0; i--) {
+                    if (this.canvas[i][y] === null) {
+                        return {x:i, y:y}
+                    }
+                }
+                break
+        }
+        return false;
+    }
+}
+
+// Singleton generator
+var SpiralOutGenerator = {
+    memoryCanvas: [],
+    colourArray:[],
+	width:0,
+	height:0,
+	defaultValue:{'r':0,'g':0,'b':0},
+	_isRunning:false,
+	nextDirection: 's',
+    previousDirection: '',
+	lastPosition: {},
+
+    init: function(canvas) {
+		this._isRunning = true
+		this.memoryCanvas = MemoryCanvas.init(
+			ColourArray.init(), canvas.width, canvas.height
+		)
+		this.width = canvas.width
+		this.height = canvas.height
+        var x = Math.floor(this.width / 2);
+        var y = Math.floor(this.height / 2);
+        this.lastPosition = {'x':x, 'y':y};
     },
 
     createImage: function() {
@@ -138,266 +308,164 @@ var SpiralOutGenerator = {
     },
 
     generate: function(i, j) {
-        var pixelStart = Date.now();
+		return this.memoryCanvas.getColour(i, j)
+    },
 
-        // surroundingSquares is an n x n grid (min n = 2, max n = 3)
-        var surroundingSquares = this._getSurroundingColours(i, j);
-        var reds = [];
-        var greens = [];
-        var blues = [];
-        for (var i = 0; i < surroundingSquares.length; i++) {
-            var colour = surroundingSquares[i];
-            reds.push(colour.r);
-            greens.push(colour.g);
-            blues.push(colour.b);
-        }
+    // Check whether the pixel has already been filled in.
+	_check: function(x, y) {
+		return this.memoryCanvas.available(x, y)
+	},
 
-        var redAvg = this.colourValue(reds);
-        var greenAvg = this.colourValue(greens);
-        var blueAvg = this.colourValue(blues);
+    checkNorth: function(x, y) {
+        return this._check(x, y - 1)
+    },
 
-        var potential = new Point(redAvg, greenAvg, blueAvg, 1);
+    checkEast: function(x, y) {
+        return this._check(x + 1, y)
+    },
 
-        if (this.colourArray[redAvg][greenAvg][blueAvg] === false) {
-            // Already used this colour
-            var found = false;
-            var radiusStep = 1;
-            var minDist = 1;
+    checkSouth: function(x, y) {
+        return this._check(x, y + 1)
+    },
 
-            while (!found) {
-                // Red, Green and Blue all at maximum radius distance.
-                var maxDist = Math.sqrt(3 * (radiusStep * radiusStep));
-                var minRed = redAvg - radiusStep;
-                if (minRed < 0) {
-                    minRed = 0;
-                }
-                var minGreen = greenAvg - radiusStep;
-                if (minGreen < 0) {
-                    minGreen = 0;
-                }
-                var minBlue = blueAvg - radiusStep;
-                if (minBlue < 0) {
-                    minBlue = 0;
-                }
-                var maxRed = redAvg + radiusStep;
-                if (maxRed > 255) {
-                    maxRed = 255;
-                }
-                var maxGreen = greenAvg + radiusStep;
-                if (maxGreen > 255) {
-                    maxGreen = 255;
-                }
-                var maxBlue = blueAvg + radiusStep;
-                if (maxBlue > 255) {
-                    maxBlue = 255;
-                }
+    checkWest: function(x, y) {
+        return this._check(x - 1, y)
+    },
 
-                for (var i = minRed; i <= maxRed; i++) {
-                    for (var j = minGreen; j <= maxGreen; j++) {
-                        for (var k = minBlue; k <= maxBlue; k++) {
-                            var distance = this.distance(i, j, k, redAvg, greenAvg, blueAvg);
-                            if (distance <= maxDist && distance > minDist && this.colourArray[i][j][k] === true) {
-                                potential.r = i;
-                                potential.g = j;
-                                potential.b = k;
-                                found = true;
-                                break;
+	move: function(x, y) {
+		var position = {};
+
+		// Can we proceed in the given direction?
+		switch(this.nextDirection) {
+			case 'n':
+                if (this.checkNorth(x, y)) {
+                    position = {'x':x, 'y':y - 1};
+                    this.previousDirection = 'n'
+                    this.nextDirection = 'w';
+                }
+				break;
+			case 'e':
+				if (this.checkEast(x, y)) {
+					position = {'x':x + 1, 'y': y};
+                    this.previousDirection = 'e'
+                    this.nextDirection = 'n';
+				} else {
+                    this.nextDirection = this.previousDirection
+                    position = this.move(x, y)
+                    if (position.success === false) {
+                        position = this.memoryCanvas.nextAvailableHorizontal(x, y, 'east')
+                        this.nextDirection = 'n'
+                        if (position === false) {
+                            if (x > 0) {
+                                position = {x: x - 1, y: 0}
+                                this.nextDirection = 's'
+                            } else {
+                                position = {}
                             }
-                        }
-                        if (found) {
-                            break;
                         }
                     }
-                    if (found) {
-                        break;
+                }
+				break;
+			case 's':
+				if (this.checkSouth(x, y)) {
+					position = {'x':x, 'y':y + 1};
+                    this.previousDirection = 's'
+                    this.nextDirection = 'e';
+				}
+				break;
+			case 'w':
+                // if (can't move west, can't move south) - edge of canvas
+                // else
+				if (this.checkWest(x, y)) {
+					position = {'x':x - 1, 'y':y};
+                    this.previousDirection = 'w'
+                    this.nextDirection = 's';
+				} else {
+                    // can't go west, continue previous direction.
+                    this.nextDirection = this.previousDirection
+                    position = this.move(x, y)
+                    if (position.success === false) {
+                        // couldn't go west, couldn't go in previous direction, try jumping
+                        position = this.memoryCanvas.nextAvailableHorizontal(x, y, 'west')
+                        this.nextDirection = 's'
+                        if (position === false) {
+                            position = {}
+                        }
                     }
                 }
-                if (found === false) {
-                    minDist = maxDist;
-                    radiusStep++;
-                }
-            }
-        }
-        this.heatmapData.push(Date.now() - pixelStart);
+				break;
+		}
+		return {position:position, success:position.hasOwnProperty('x')}
+	},
 
-        return potential;
-    },
+    // If we're here, the nextDirection was false, so this is the fail over.
+	getDirection: function() {
+		switch(this.nextDirection) {
+			case 'e':
+				if (this._check(this.lastPosition.x, this.lastPosition.y + 1)) {
+					return 's';
+				}
+			case 's':
+				if (this._check(this.lastPosition.x - 1, this.lastPosition.y)) {
+					return 'w';
+				}
+			case 'w':
+				if (this._check(this.lastPosition.x, this.lastPosition.y - 1)) {
+					return 'n';
+				}
+			case 'n':
+				if (this._check(this.lastPosition.x + 1, this.lastPosition.y)) {
+					return 'e';
+				}
+			default:
+				return false;
+		}
+	},
 
-    distance: function(r, g, b, ravg, gavg, bavg) {
-        var rdist = ravg - r;
-        var gdist = gavg - g;
-        var bdist = bavg - b;
-
-        return Math.sqrt((rdist * rdist) + (gdist * gdist) + (bdist * bdist));
-    },
-
-    record: function(i, j, colour) {
-        this.colourCount++;
-        this.colourArray[colour.r][colour.g][colour.b] = false;
-        this.memoryCanvas[i][j] = colour;
-        var basePixel = (j * this.height + i) * 4;
-        this.imageData.data[basePixel] = colour.r;
-        this.imageData.data[basePixel + 1] = colour.g;
-        this.imageData.data[basePixel + 2] = colour.b;
-        this.imageData.data[basePixel + 3] = 255;
-    },
-
-    move: function() {
-        var position = {};
-        if (this.pixelsRemaining() === true) {
-            var x = this.lastPosition.x;
-            var y = this.lastPosition.y;
-
-            // Do we have a direction?
-            if (this.lastDirection !== '') {
-                // Do we have to maintain the direction, or can we turn a corner?
-                switch(this.lastDirection) {
-                    case 'n':
-                        // We'd like to go east if at all possible
-                        // Else, continue north.
-                        if ((x + 1 < this.width) && this._check(x + 1, y)) {
-                            position = {'x':x + 1, 'y':y};
-                            this.lastDirection = 'e';
-                        } else if ((y - 1 >= 0) && this._check(x, y - 1)) {
-                            position = {'x':x, 'y':y - 1};
-                            this.lastDirection = 'n';
-                        }
-                        break;
-                    case 'e':
-                        // We'd like to go south if at all possible
-                        // Else, continue east
-                        if ((y + 1 < this.height) && this._check(x, y + 1)) {
-                            position = {'x': x, 'y': y + 1};
-                            this.lastDirection = 's';
-                        } else if ((x + 1 < this.width) && this._check(x + 1, y)) {
-                            position = {'x':x + 1, 'y': y};
-                            this.lastDirection = 'e';
-                        }
-                        break;
-                    case 's':
-                        // We'd like to go west if at all possible
-                        // Else continue south
-                        if ((x - 1 >= 0) && this._check(x - 1, y)) {
-                            this.lastDirection = 'w';
-                            position = {'x':x - 1, 'y':y};
-                        } else if ((y + 1 < this.height) && this._check(x, y + 1)) {
-                            this.lastDirection = 's';
-                            position = {'x':x, 'y':y + 1};
-                        }
-                        break;
-                    case 'w':
-                        // We'd like to go north if at all possible
-                        // Else continue west
-                        if ((y - 1 >= 0) && this._check(x, y - 1)) {
-                            position = {'x':x, 'y':y - 1};
-                            this.lastDirection = 'n';
-                        } else if ((x - 1 >= 0) && this._check(x - 1, y)) {
-                            position = {'x':x - 1, 'y':y};
-                            this.lastDirection = 'w';
-                        }
-                        break;
-                }
-            }
-
-            // It's possible that we won't be able to spiral the way we'd like.
-            // This is easiest to visualise with a rectangle of sides n, m where
-            // n << m
-            // In these situations we'll skip over the area that's in use
-            // until we find a point we can fill in.
-            while (position.hasOwnProperty('x') === false) {
-                var found = false;
-                switch (this.lastDirection) {
-                    case 'n':
-                        // We'd like to go east if possible
-                        for (var i = this.lastPosition.x; i < this.width; i++) {
-                            if (this._check(i, this.lastPosition.y)) {
-                                position = {'x':i, 'y':this.lastPosition.y};
-                                found = true;
-                                break;
-                            }
-                        }
-                        // There weren't any missing points going east, so
-                        // instead say we went east as far as possible and look
-                        // again.
-                        if (found === false) {
-                            this.lastPosition = {
-                                'x':this.width - 1,
-                                'y':this.lastPosition.y
-                            };
-                            this.lastDirection = 'e';
-                        }
-                        break;
-                    case 'e':
-                        // We'd like to go south if possible.
-                        for (var i = this.lastPosition.y; i < this.height; i++) {
-                            if (this._check(this.lastPosition.x, i)) {
-                                position = {'x':this.lastPosition.x, 'y':i};
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (found === false) {
-                            this.lastPosition = {
-                                'x':this.width - 1,
-                                'y':this.height - 1
-                            };
-                            this.lastDirection = 's';
-                        }
-                        break;
-                    case 's':
-                        // We'd like to go west if possible.
-                        for (var i = this.lastPosition.x; i >= 0; i--) {
-                            if (this._check(i, this.lastPosition.y)) {
-                                position = {'x':i, 'y':this.lastPosition.y};
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (found === false) {
-                            this.lastPosition = {
-                                'x':0,
-                                'y':this.height - 1
-                            };
-                            this.lastDirection = 'w';
-                        }
-                        break;
-                    case 'w':
-                        // We'd like to go north if possible.
-                        for (var i = this.lastPosition.y; i >= 0; i--) {
-                            if (this._check(this.lastPosition.x, i)) {
-                                position = {'x':this.lastPosition.x, 'y':i};
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (found === false) {
-                            this.lastPosition = {
-                                'x':0,
-                                'y':0
-                            };
-                            this.lastDirection = 'n';
-                        }
-                        break;
-                }
-            }
-            this.lastPosition = position;
-        }
-
-        return position;
-    },
-
-    _check: function(x, y) {
-        return (this.memoryCanvas[x][y] === null);
-    },
     isRunning: function() {
         return this._isRunning;
     },
-    getData: function() {
-        return this.imageData;
-    },
-    getHeatmapData: function() {
-        return this.heatmapData;
-    }
+
+	createImage: function(buffer) {
+		this._isRunning = true;
+		let colourIn = function(x, y, width, colour) {
+			var idx = 4 * ((y * width) + x)
+			buffer[idx + 0] = colour.r
+			buffer[idx + 1] = colour.g
+			buffer[idx + 2] = colour.b
+			buffer[idx + 3] = 255
+		}
+
+		let result = {
+			position:{
+				x:this.lastPosition.x,
+				y:this.lastPosition.y
+			},
+			success: true
+		}
+		let count = 0
+		let total = this.width * this.height
+		while (result.success) {
+			count++
+			var colour = this.generate(result.position.x, result.position.y)
+			colourIn(result.position.x, result.position.y, this.width, colour)
+			this.lastPosition = {x:result.position.x, y:result.position.y}
+
+            // Attempt to move (south -> east -> north -> west)
+			result = this.move(result.position.x, result.position.y)
+			if (!result.success) {
+                // Couldn't move, get a new direction (was north, try west)
+				this.nextDirection = this.getDirection()
+				if (this.nextDirection !== false) {
+                    // Couldn't move, try south
+					result = this.move(this.lastPosition.x, this.lastPosition.y)
+				} else {
+                    // Couldn't move in any direction, must be finished.
+                    result = {success: false}
+                }
+			}
+		}
+	}
 }
 
 self.addEventListener('message', function(e) {
@@ -406,26 +474,18 @@ self.addEventListener('message', function(e) {
         case 'start':
             var canvas = data.canvas;
             var defaultValue = data.default;
+            var imageData = data.imageData
             SpiralOutGenerator.init(canvas, defaultValue);
-            SpiralOutGenerator.createImage();
-            break;
-        case 'getData':
+            SpiralOutGenerator.createImage(imageData.data);
             self.postMessage({
-                'running':SpiralOutGenerator.isRunning(),
-                'imageData':SpiralOutGenerator.getData()
-            });
-            break;
-        case 'abilities':
+                'type':'final',
+                'running':true,
+                'data':imageData
+            })
             self.postMessage({
-                'abilities':{
-                    'heatmap':true
-                }
-            });
-            break;
-        case 'heatmap':
-            self.postMessage({
-                'heatmap':SpiralOutGenerator.getHeatmapData()
-            });
+                'type':'status',
+                'running':false
+            })
             break;
         case 'close':
             self.close();

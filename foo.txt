@@ -1,0 +1,82 @@
+// It's possible that we won't be able to spiral the way we'd like.
+// This is easiest to visualise with a rectangle of sides n, m where
+// n << m
+// In these situations we'll skip over the area that's in use
+// until we find a point we can fill in.
+while (position.hasOwnProperty('x') === false) {
+		var found = false;
+		switch (this.lastDirection) {
+				case 'n':
+						// We'd like to go east if possible
+						for (var i = this.lastPosition.x; i < this.width; i++) {
+								if (this._check(i, this.lastPosition.y)) {
+										position = {'x':i, 'y':this.lastPosition.y};
+										found = true;
+										break;
+								}
+						}
+						// There weren't any missing points going east, so
+						// instead say we went east as far as possible and look
+						// again.
+						if (found === false) {
+								this.lastPosition = {
+										'x':this.width - 1,
+										'y':this.lastPosition.y
+								};
+								this.lastDirection = 'e';
+						}
+						break;
+				case 'e':
+						// We'd like to go south if possible.
+						for (var i = this.lastPosition.y; i < this.height; i++) {
+								if (this._check(this.lastPosition.x, i)) {
+										position = {'x':this.lastPosition.x, 'y':i};
+										found = true;
+										break;
+								}
+						}
+						if (found === false) {
+								this.lastPosition = {
+										'x':this.width - 1,
+										'y':this.height - 1
+								};
+								this.lastDirection = 's';
+						}
+						break;
+				case 's':
+						// We'd like to go west if possible.
+						for (var i = this.lastPosition.x; i >= 0; i--) {
+								if (this._check(i, this.lastPosition.y)) {
+										position = {'x':i, 'y':this.lastPosition.y};
+										found = true;
+										break;
+								}
+						}
+						if (found === false) {
+								this.lastPosition = {
+										'x':0,
+										'y':this.height - 1
+								};
+								this.lastDirection = 'w';
+						}
+						break;
+				case 'w':
+						// We'd like to go north if possible.
+						for (var i = this.lastPosition.y; i >= 0; i--) {
+								if (this._check(this.lastPosition.x, i)) {
+										position = {'x':this.lastPosition.x, 'y':i};
+										found = true;
+										break;
+								}
+						}
+						if (found === false) {
+								this.lastPosition = {
+										'x':0,
+										'y':0
+								};
+								this.lastDirection = 'n';
+						}
+						break;
+		}
+}
+this.lastPosition = position;

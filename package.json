@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/SpecialDragonfly/canvas-filler#readme",
   "dependencies": {
-    "express": "^4.16.4"
+    "express": "^4.16.4",
+    "nodemon": "^1.18.11"
   }
 }

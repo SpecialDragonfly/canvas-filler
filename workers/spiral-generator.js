@@ -193,9 +193,9 @@ const MemoryCanvas = {
 
         return potential
     },
-		available: function(i, j) {
-			return this.canvas[i][j] === null
-		}
+	available: function(i, j) {
+		return this.canvas[i][j] === null
+	}
 }
 
 // Singleton generator
@@ -205,28 +205,28 @@ var SpiralGenerator = {
     width:0,
     height:0,
     defaultValue:{'r':0,'g':0,'b':0},
-		_isRunning:true,
-		lastDirection: 's',
-		lastPosition: {},
+	_isRunning:true,
+	lastDirection: 's',
+	lastPosition: {},
 
     init: function(canvas) {
-				this.lastPosition = {}
-				this.lastDirection = 's'
-				this._isRunning = true
+		this.lastPosition = {}
+		this.lastDirection = 's'
+		this._isRunning = true
         this.width = canvas.width;
         this.height = canvas.height;
         this.memoryCanvas = MemoryCanvas.init(
-					ColourArray.init(), canvas.width, canvas.height
-				)
+			ColourArray.init(), canvas.width, canvas.height
+		)
     },
 
-		generate: function(i, j) {
-			return this.memoryCanvas.getColour(i, j)
-		},
+	generate: function(i, j) {
+		return this.memoryCanvas.getColour(i, j)
+	},
 
-		_check: function(x, y) {
-			return this.memoryCanvas.available(x, y)
-		},
+	_check: function(x, y) {
+		return this.memoryCanvas.available(x, y)
+	},
 
     move: function(x, y) {
         var position = {};
@@ -254,85 +254,84 @@ var SpiralGenerator = {
                 }
                 break;
         }
-				return {position:position, success:position.hasOwnProperty('x')}
+		return {position:position, success:position.hasOwnProperty('x')}
     },
 
-		getDirection: function() {
-			switch(this.lastDirection) {
-				case 's':
-					if (this._check(this.lastPosition.x + 1, this.lastPosition.y)) {
-						return 'e';
-					}
-				case 'e':
-					if (this._check(this.lastPosition.x, this.lastPosition.y - 1)) {
-						return 'n';
-					}
-				case 'n':
-					if (this._check(this.lastPosition.x - 1, this.lastPosition.y)) {
-						return 'w';
-					}
-				case 'w':
-					if (this._check(this.lastPosition.x, this.lastPosition.y + 1)) {
-						return 's';
-					}
-				default:
-					return false;
-			}
-		},
+	getDirection: function() {
+		switch(this.lastDirection) {
+			case 's':
+				if (this._check(this.lastPosition.x + 1, this.lastPosition.y)) {
+					return 'e';
+				}
+			case 'e':
+				if (this._check(this.lastPosition.x, this.lastPosition.y - 1)) {
+					return 'n';
+				}
+			case 'n':
+				if (this._check(this.lastPosition.x - 1, this.lastPosition.y)) {
+					return 'w';
+				}
+			case 'w':
+				if (this._check(this.lastPosition.x, this.lastPosition.y + 1)) {
+					return 's';
+				}
+			default:
+				return false;
+		}
+	},
 
     isRunning: function() {
         return this._isRunning;
     },
 
-		createImage: function(buffer) {
-				this._isRunning = true;
-				let colourIn = function(x, y, width, colour) {
-					var idx = 4 * ((y * width) + x)
-					buffer[idx + 0] = colour.r
-					buffer[idx + 1] = colour.g
-					buffer[idx + 2] = colour.b
-					buffer[idx + 3] = 255
+	createImage: function(buffer) {
+		this._isRunning = true;
+		let colourIn = function(x, y, width, colour) {
+			var idx = 4 * ((y * width) + x)
+			buffer[idx + 0] = colour.r
+			buffer[idx + 1] = colour.g
+			buffer[idx + 2] = colour.b
+			buffer[idx + 3] = 255
+		}
+
+		let result = {position:{x:0, y:0}, success:true}
+		let count = 0
+		let within90Percent = false
+		let total = this.width * this.height
+		while (result.success) {
+			count++
+			var colour = this.generate(result.position.x, result.position.y)
+			colourIn(result.position.x, result.position.y, this.width, colour)
+			this.lastPosition = {x:result.position.x, y:result.position.y}
+			result = this.move(result.position.x, result.position.y);
+			if (!result.success) {
+				this.lastDirection = this.getDirection()
+				if (this.lastDirection !== false) {
+					result = this.move(this.lastPosition.x, this.lastPosition.y);
 				}
-
-				let result = {position:{x:0, y:0}, success:true}
-				let count = 0
-				let within90Percent = false
-				let total = this.width * this.height
-				while (result.success) {
-						count++
-						var colour = this.generate(result.position.x, result.position.y)
-						colourIn(result.position.x, result.position.y, this.width, colour)
-						this.lastPosition = {x:result.position.x, y:result.position.y}
-						result = this.move(result.position.x, result.position.y);
-						if (!result.success) {
-							this.lastDirection = this.getDirection()
-							if (this.lastDirection !== false) {
-								result = this.move(this.lastPosition.x, this.lastPosition.y);
-							}
-						}
-						if (!within90Percent) {
-							if (total * 0.9 < count) {
-								within90Percent = true
-							}
-						}
-						if (within90Percent) {
-							self.postMessage({
-								'type': 'count',
-								'running': this._isRunning,
-								'count': count
-							})
-						} else if (count % 1000 == 0) {
-							self.postMessage({
-								'type': 'count',
-								'running': this._isRunning,
-								'count': count
-							})
-						}
+			}
+			if (!within90Percent) {
+				if (total * 0.9 < count) {
+					within90Percent = true
 				}
+			}
+			if (within90Percent) {
+				self.postMessage({
+					'type': 'count',
+					'running': this._isRunning,
+					'count': count
+				})
+			} else if (count % 1000 == 0) {
+				self.postMessage({
+					'type': 'count',
+					'running': this._isRunning,
+					'count': count
+				})
+			}
+		}
 
-				this._isRunning = false;
-		},
-
+		this._isRunning = false;
+	}
 }
 
 self.addEventListener('message', function(e) {
@@ -341,18 +340,18 @@ self.addEventListener('message', function(e) {
         case 'start':
             var canvas = data.canvas;
             var defaultValue = data.default;
-						var imageData = data.imageData
+			var imageData = data.imageData
             SpiralGenerator.init(canvas);
             SpiralGenerator.createImage(imageData.data);
-						self.postMessage({
-							'type':'final',
-							'running':true,
-							'data':imageData
-						})
-						self.postMessage({
-							'type':'status',
-							'running':false
-						})
+			self.postMessage({
+				'type':'final',
+				'running':true,
+				'data':imageData
+			})
+			self.postMessage({
+				'type':'status',
+				'running':false
+			})
             break;
         case 'close':
             self.close();
